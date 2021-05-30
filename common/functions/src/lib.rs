@@ -19,6 +19,7 @@ mod strings;
 mod udfs;
 
 pub use expressions::CastFunction;
+pub use expressions::HashFunction;
 pub use function::IFunction;
 pub use function_alias::AliasFunction;
 pub use function_column::ColumnFunction;

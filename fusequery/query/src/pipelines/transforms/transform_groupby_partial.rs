@@ -8,10 +8,10 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use common_aggregate_functions::IAggregateFunction;
-use common_arrow::arrow::array::BinaryBuilder;
+use common_arrow::arrow::array::{BinaryBuilder, UInt64Array, PrimitiveBuilder, UInt64Builder, ListBuilder};
 use common_arrow::arrow::array::StringBuilder;
 use common_datablocks::DataBlock;
-use common_datavalues::DataArrayRef;
+use common_datavalues::{DataArrayRef, UInt8Array};
 use common_datavalues::DataColumnarValue;
 use common_datavalues::DataSchemaRef;
 use common_datavalues::DataSchemaRefExt;
@@ -26,14 +26,15 @@ use log::info;
 
 use crate::pipelines::processors::EmptyProcessor;
 use crate::pipelines::processors::IProcessor;
+use common_arrow::arrow::datatypes::ToByteSlice;
 
 // Table for <group_key, (indices, keys) >
-type GroupIndicesTable = HashMap<Vec<u8>, (Vec<u32>, Vec<DataValue>), ahash::RandomState>;
+type GroupIndicesTable = HashMap<Vec<u64>, (Vec<u32>, Vec<DataValue>), ahash::RandomState>;
 
 // Table for <group_key, ((function, column_name, args), keys) >
 type GroupFuncTable = RwLock<
     HashMap<
-        Vec<u8>,
+        Vec<u64>,
         (
             Vec<(Box<dyn IAggregateFunction>, String, Vec<String>)>,
             Vec<DataValue>
@@ -45,6 +46,7 @@ type GroupFuncTable = RwLock<
 pub struct GroupByPartialTransform {
     aggr_exprs: Vec<Expression>,
     group_exprs: Vec<Expression>,
+    hash_group_exprs: Vec<Expression>,
     schema: DataSchemaRef,
     input: Arc<dyn IProcessor>,
     groups: GroupFuncTable
@@ -54,11 +56,13 @@ impl GroupByPartialTransform {
     pub fn create(
         schema: DataSchemaRef,
         aggr_exprs: Vec<Expression>,
-        group_exprs: Vec<Expression>
+        group_exprs: Vec<Expression>,
+        hash_group_exprs: Vec<Expression>
     ) -> Self {
         Self {
             aggr_exprs,
             group_exprs,
+            hash_group_exprs,
             schema,
             input: Arc::new(EmptyProcessor::create()),
             groups: RwLock::new(HashMap::default())
@@ -125,11 +129,16 @@ impl IProcessor for GroupByPartialTransform {
             let block = block?;
             let mut group_indices = GroupIndicesTable::default();
             let mut group_columns = Vec::with_capacity(group_len);
+            let mut hash_group_columns = Vec::with_capacity(self.hash_group_exprs.len());
 
             // 1.1 Eval the group expr columns.
             {
                 for expr in &self.group_exprs {
                     group_columns.push(block.try_column_by_name(&expr.column_name())?);
+                }
+
+                for expr in &self.hash_group_exprs {
+                    hash_group_columns.push(block.try_column_by_name(&expr.column_name())?);
                 }
             }
 
@@ -146,7 +155,29 @@ impl IProcessor for GroupByPartialTransform {
                 }
 
                 let mut group_key = Vec::with_capacity(group_key_len);
+
                 for row in 0..block.num_rows() {
+                    group_key.clear();
+                    for col in &hash_group_columns {
+                        let col = col.to_array()?;
+                        let array = col.as_any().downcast_ref::<UInt64Array>().unwrap();
+                        group_key.push(array.value(row))
+                    }
+                    match group_indices.get_mut(&group_key) {
+                        None => {
+                            let mut group_values = Vec::with_capacity(group_key.len());
+                            for col in &group_columns {
+                                group_values.push(DataValue::try_from_column(col, row)?);
+                            }
+                            group_indices
+                                .insert(group_key.clone(), (vec![row as u32], group_values));
+                        }
+                        Some((v, _)) => {
+                            v.push(row as u32);
+                        }
+                    }
+                }
+                /*for row in 0..block.num_rows() {
                     group_key.clear();
 
                     for col in &group_columns {
@@ -166,7 +197,7 @@ impl IProcessor for GroupByPartialTransform {
                             v.push(row as u32);
                         }
                     }
-                }
+                }*/
             }
 
             // 1.3 Apply take blocks to aggregate function by group_key.
@@ -236,6 +267,8 @@ impl IProcessor for GroupByPartialTransform {
             .collect();
 
         let mut group_key_builder = BinaryBuilder::new(groups.len());
+        //let mut group_key_builder = PrimitiveBuilder::<UInt64Array>::new(groups.len());
+        //let mut group_key_builder = UInt64Array::builder(groups.len());
         for (key, (funcs, values)) in groups.iter() {
             for (idx, func) in funcs.iter().enumerate() {
                 let states = DataValue::Struct(func.0.accumulate_result()?);
@@ -247,7 +280,7 @@ impl IProcessor for GroupByPartialTransform {
             let key_ser = serde_json::to_string(&DataValue::Struct(values.clone()))?;
             builders[aggr_len].append_value(key_ser.as_str())?;
 
-            group_key_builder.append_value(key)?;
+            group_key_builder.append_value(key.to_byte_slice())?;
         }
 
         let mut columns: Vec<DataArrayRef> = Vec::with_capacity(self.schema.fields().len());

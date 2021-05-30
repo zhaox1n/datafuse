@@ -7,4 +7,8 @@ mod cast_test;
 
 mod cast;
 
+mod hash;
+
 pub use cast::CastFunction;
+
+pub use hash::HashFunction;
