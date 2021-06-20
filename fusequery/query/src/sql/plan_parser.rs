@@ -23,6 +23,8 @@ use common_planners::DropDatabasePlan;
 use common_planners::DropTablePlan;
 use common_planners::ExplainPlan;
 use common_planners::Expression;
+use common_planners::FrameBound;
+use common_planners::FrameType;
 use common_planners::InsertIntoPlan;
 use common_planners::PlanBuilder;
 use common_planners::PlanNode;
@@ -30,6 +32,7 @@ use common_planners::SelectPlan;
 use common_planners::SettingPlan;
 use common_planners::UseDatabasePlan;
 use common_planners::VarValue;
+use common_planners::WindowFrame;
 use common_tracing::tracing;
 use sqlparser::ast::Expr;
 use sqlparser::ast::FunctionArg;
@@ -39,6 +42,8 @@ use sqlparser::ast::OrderByExpr;
 use sqlparser::ast::Query;
 use sqlparser::ast::Statement;
 use sqlparser::ast::TableFactor;
+use sqlparser::ast::WindowFrameBound;
+use sqlparser::ast::WindowFrameUnits;
 
 use super::expr_common::rebase_expr_from_input;
 use crate::datasources::Table;
@@ -819,25 +824,101 @@ impl PlanParser {
                 }
 
                 let op = e.name.to_string();
-                if AggregateFunctionFactory::check(&op) {
-                    let args = match op.to_lowercase().as_str() {
-                        "count" => args
-                            .iter()
-                            .map(|c| match c {
-                                Expression::Wildcard => common_planners::lit(0i64),
-                                _ => c.clone(),
-                            })
-                            .collect(),
-                        _ => args,
-                    };
-                    return Ok(Expression::AggregateFunction {
-                        op,
-                        distinct: e.distinct,
-                        args,
-                    });
-                }
 
-                Ok(Expression::ScalarFunction { op, args })
+                match &e.over {
+                    Some(window_spec) => {
+                        let mut partition_by = Vec::with_capacity(window_spec.partition_by.len());
+                        let mut order_by = Vec::with_capacity(window_spec.order_by.len());
+
+                        for partition_by_item in &window_spec.partition_by {
+                            partition_by.push(self.sql_to_rex(
+                                partition_by_item,
+                                schema,
+                                select,
+                            )?);
+                        }
+                        for order_by_item in &window_spec.partition_by {
+                            order_by.push(self.sql_to_rex(order_by_item, schema, select)?);
+                        }
+                        let frame = match &window_spec.window_frame {
+                            None => None,
+                            Some(window_fame) => {
+                                let window_frame_type = match &window_fame.units {
+                                    WindowFrameUnits::Rows => FrameType::Rows,
+                                    WindowFrameUnits::Range => FrameType::Range,
+                                    WindowFrameUnits::Groups => {
+                                        Result::Err(ErrorCode::SyntaxException(format!(
+                                            "Unsupported window function frame type: Groups"
+                                        )))?
+                                    }
+                                };
+
+                                fn frame_bound_to_plan(
+                                    frame_bound: &WindowFrameBound,
+                                ) -> FrameBound {
+                                    match frame_bound {
+                                        WindowFrameBound::CurrentRow => FrameBound::CurrentRow,
+                                        WindowFrameBound::Preceding(Some(e)) => {
+                                            FrameBound::Preceding(Some(e.clone()))
+                                        }
+                                        WindowFrameBound::Preceding(None) => {
+                                            FrameBound::Preceding(None)
+                                        }
+                                        WindowFrameBound::Following(Some(e)) => {
+                                            FrameBound::Following(Some(e.clone()))
+                                        }
+                                        WindowFrameBound::Following(None) => {
+                                            FrameBound::Following(None)
+                                        }
+                                    }
+                                }
+
+                                let window_start_bound =
+                                    frame_bound_to_plan(&window_fame.start_bound);
+                                let window_end_bound = match &window_fame.end_bound {
+                                    None => None,
+                                    Some(window_frame_bound) => {
+                                        Some(frame_bound_to_plan(window_frame_bound))
+                                    }
+                                };
+
+                                Some(WindowFrame {
+                                    frame_type: window_frame_type,
+                                    start_bound: window_start_bound,
+                                    end_bound: window_end_bound,
+                                })
+                            }
+                        };
+                        Ok(Expression::WindowFunction {
+                            op,
+                            distinct: e.distinct,
+                            args,
+                            partition_by,
+                            order_by,
+                            frame,
+                        })
+                    }
+                    None => {
+                        if AggregateFunctionFactory::check(&op) {
+                            let args = match op.to_lowercase().as_str() {
+                                "count" => args
+                                    .iter()
+                                    .map(|c| match c {
+                                        Expression::Wildcard => common_planners::lit(0i64),
+                                        _ => c.clone(),
+                                    })
+                                    .collect(),
+                                _ => args,
+                            };
+                            return Ok(Expression::AggregateFunction {
+                                op,
+                                distinct: e.distinct,
+                                args,
+                            });
+                        }
+                        Ok(Expression::ScalarFunction { op, args })
+                    }
+                }
             }
             sqlparser::ast::Expr::Wildcard => Ok(Expression::Wildcard),
             sqlparser::ast::Expr::TypedString { data_type, value } => {

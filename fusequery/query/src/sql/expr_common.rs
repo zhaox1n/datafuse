@@ -275,6 +275,8 @@ where F: Fn(&Expression) -> Result<Option<Expression>> {
                 })
             }
 
+            Expression::WindowFunction { .. } => Ok(expr.clone()),
+
             Expression::Sort {
                 expr: nested_expr,
                 asc,

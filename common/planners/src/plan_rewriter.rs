@@ -363,6 +363,8 @@ impl RewriteHelper {
                 }
             }
 
+            Expression::WindowFunction { .. } => Ok(expr.clone()),
+
             Expression::Alias(alias, plan) => {
                 if data.inside_aliases.contains(alias) {
                     return Result::Err(ErrorCode::SyntaxException(format!(
@@ -448,6 +450,7 @@ impl RewriteHelper {
             }
             Expression::ScalarFunction { args, .. } => args.clone(),
             Expression::AggregateFunction { args, .. } => args.clone(),
+            Expression::WindowFunction { .. } => vec![],
             Expression::Wildcard => vec![],
             Expression::Sort { expr, .. } => vec![expr.as_ref().clone()],
             Expression::Cast { expr, .. } => vec![expr.as_ref().clone()],
@@ -483,6 +486,7 @@ impl RewriteHelper {
                 }
                 v
             }
+            Expression::WindowFunction { .. } => vec![],
             Expression::Wildcard => vec![],
             Expression::Sort { expr, .. } => Self::expression_plan_columns(expr)?,
             Expression::Cast { expr, .. } => Self::expression_plan_columns(expr)?,

@@ -153,6 +153,26 @@ impl ExpressionChain {
 
                 self.actions.push(ExpressionAction::Function(function));
             }
+
+            Expression::WindowFunction { op, args, .. } => {
+                let mut arg_fields = Vec::with_capacity(args.len());
+                for arg in args.iter() {
+                    arg_fields.push(arg.to_data_field(&self.schema)?);
+                }
+
+                let func = expr.to_aggregate_function(&self.schema)?;
+                let function = ActionFunction {
+                    name: expr.column_name(),
+                    func_name: op.clone(),
+                    is_aggregated: true,
+                    arg_types: vec![],
+                    arg_names: vec![],
+                    arg_fields,
+                    return_type: func.return_type()?,
+                };
+
+                self.actions.push(ExpressionAction::Function(function));
+            }
             Expression::Sort { expr, .. } => {
                 self.add_expr(expr)?;
             }

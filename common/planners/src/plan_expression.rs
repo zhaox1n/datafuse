@@ -17,6 +17,7 @@ use common_exception::Result;
 use common_functions::FunctionFactory;
 use lazy_static::lazy_static;
 
+use crate::plan_window::WindowFrame;
 use crate::PlanNode;
 
 lazy_static! {
@@ -69,6 +70,16 @@ pub enum Expression {
         op: String,
         distinct: bool,
         args: Vec<Expression>,
+    },
+
+    /// WindowFunction
+    WindowFunction {
+        op: String,
+        distinct: bool,
+        args: Vec<Expression>,
+        partition_by: Vec<Expression>,
+        order_by: Vec<Expression>,
+        frame: Option<WindowFrame>,
     },
 
     /// A sort expression, that can be used to sort values.
@@ -151,6 +162,10 @@ impl Expression {
                 let func = self.to_aggregate_function(input_schema)?;
                 func.return_type()
             }
+            Expression::WindowFunction { .. } => {
+                let func = self.to_aggregate_function(input_schema)?;
+                func.return_type()
+            }
             Expression::Wildcard => Result::Err(ErrorCode::IllegalDataType(
                 "Wildcard expressions are not valid to get return type",
             )),
@@ -226,6 +241,21 @@ impl fmt::Debug for Expression {
             }
 
             Expression::AggregateFunction { op, distinct, args } => {
+                write!(f, "{}(", op)?;
+                if *distinct {
+                    write!(f, "distinct ")?;
+                }
+                for (i, _) in args.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{:?}", args[i],)?;
+                }
+                write!(f, ")")
+            }
+            Expression::WindowFunction {
+                op, distinct, args, ..
+            } => {
                 write!(f, "{}(", op)?;
                 if *distinct {
                     write!(f, "distinct ")?;

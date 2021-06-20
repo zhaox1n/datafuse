@@ -71,6 +71,7 @@ mod plan_table_drop;
 mod plan_use_database;
 mod plan_visitor;
 mod plan_walker;
+mod plan_window;
 
 pub use plan_aggregator_final::AggregatorFinalPlan;
 pub use plan_aggregator_partial::AggregatorPartialPlan;
@@ -125,3 +126,7 @@ pub use plan_table_create::TableOptions;
 pub use plan_table_drop::DropTablePlan;
 pub use plan_use_database::UseDatabasePlan;
 pub use plan_visitor::PlanVisitor;
+pub use plan_window::FrameBound;
+pub use plan_window::FrameType;
+pub use plan_window::WindowFrame;
+pub use plan_window::WindowPlan;
