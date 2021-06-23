@@ -8,7 +8,7 @@ use common_datavalues::DataSchemaRef;
 use common_exception::ErrorCode;
 use common_exception::Result;
 
-use crate::AggregatorFinalPlan;
+use crate::{AggregatorFinalPlan, WindowPlan};
 use crate::AggregatorPartialPlan;
 use crate::CreateDatabasePlan;
 use crate::CreateTablePlan;
@@ -57,6 +57,7 @@ pub enum PlanNode {
     UseDatabase(UseDatabasePlan),
     SetVariable(SettingPlan),
     InsertInto(InsertIntoPlan),
+    Window(WindowPlan)
 }
 
 impl PlanNode {

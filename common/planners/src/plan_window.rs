@@ -37,7 +37,7 @@ pub struct WindowFrame {
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq)]
 pub struct WindowPlan {
-    pub func_expr: Vec<Expression>,
+    pub func_expr: Expression,
     pub partition_by: Vec<Expression>,
     pub order_by: Vec<Expression>,
     pub frame: Option<WindowFrame>,

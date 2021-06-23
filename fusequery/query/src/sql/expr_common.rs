@@ -32,6 +32,12 @@ pub fn find_aggregate_exprs(exprs: &[Expression]) -> Vec<Expression> {
     })
 }
 
+/// Collect all deeply nested `Expression::WindowFunction`
+pub fn find_window_exprs(exprs: &[Expression]) -> Vec<Expression> {
+    find_exprs_in_exprs(exprs, &|nest_exprs| {
+        matches!(nest_exprs, Expression::WindowFunction { .. })
+    })
+}
 /// Collect all arguments from aggregation function and append to this exprs
 /// [ColumnExpr(b), Aggr(sum(a, b))] ---> [ColumnExpr(b), ColumnExpr(a)]
 
@@ -54,6 +60,35 @@ pub fn expand_aggregate_arg_exprs(exprs: &[Expression]) -> Vec<Expression> {
         }
     }
     res
+}
+
+pub fn expand_window_exprs(exprs: &Expression) -> (Vec<Expression>, Vec<Expression>) {
+    let mut res = vec![];
+    let mut sort = vec![];
+    match exprs {
+        Expression::WindowFunction {args, partition_by, order_by, .. } => {
+            let expression_before_windows = args.iter()
+                .chain(partition_by.iter())
+                .chain(order_by.iter())
+                .clone()
+                .collect::<Vec<_>>();
+            for expr in expression_before_windows {
+                if !res.contains(expr) {
+                    res.push(expr.clone());
+                }
+            }
+            let sort_expression = partition_by.iter()
+                .chain(order_by.iter())
+                .clone().collect::<Vec<_>>();
+            for expr in sort_expression {
+                if !sort.contains(expr) {
+                    sort.push(expr.clone())
+                }
+            }
+        }
+        _ => {}
+    }
+    (res, sort)
 }
 
 /// Collect all deeply nested `Expression::Column`'s. They are returned in order of

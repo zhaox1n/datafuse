@@ -49,7 +49,7 @@ use super::expr_common::rebase_expr_from_input;
 use crate::datasources::Table;
 use crate::functions::ContextFunction;
 use crate::sessions::FuseQueryContextRef;
-use crate::sql::expr_common::expand_aggregate_arg_exprs;
+use crate::sql::expr_common::{expand_aggregate_arg_exprs, find_window_exprs, expand_window_exprs};
 use crate::sql::expr_common::expand_wildcard;
 use crate::sql::expr_common::expr_as_column_expr;
 use crate::sql::expr_common::extract_aliases;
@@ -513,6 +513,52 @@ impl PlanParser {
             (plan, having_expr_post_aggr_opt)
         } else {
             (plan, having_expr_opt)
+        };
+
+        let window_exprs = find_window_exprs(&expression_exprs);
+        let plan = if  window_exprs.len() > 0 {
+            let plan;
+            for expr_item in window_exprs {
+                let (before_window_exprs, sort_exprs) = expand_window_exprs(&expr_item);
+
+                let plan = self
+                    .expression(&plan, &before_window_exprs, "Before Window")
+                    .and_then(|input| self.sort(&input, &sort_exprs))
+                    .and_then(|input| sele.)
+
+            }
+            plan
+            let aggr_projection_exprs = window_exprs
+                .iter()
+                .chain(window_exprs.iter())
+                .cloned()
+                .collect::<Vec<_>>();
+
+            let before_aggr_exprs = expand_window_arg_exprs(&aggr_projection_exprs);
+
+            // Build aggregate inner expression plan and then aggregate&groupby plan.
+            // In example:
+            // inner expression=[(number + 1), (number % 3)]
+            let plan = self
+                .expression(&plan, &before_aggr_exprs, "Before GroupBy")
+                .and_then(|input| self.aggregate(&input, &aggr_exprs, &group_by_exprs))?;
+
+            // After aggregation, these are all of the columns that will be
+            // available to next phases of planning.
+            let column_exprs_post_aggr = aggr_projection_exprs
+                .iter()
+                .map(|expr| expr_as_column_expr(expr))
+                .collect::<Result<Vec<_>>>()?;
+
+            // Rewrite the SELECT expression to use the columns produced by the aggregation.
+            // In example:[col("number + 1"), col("number % 3")]
+            let select_exprs_post_aggr = expression_exprs
+                .iter()
+                .map(|expr| rebase_expr(expr, &aggr_projection_exprs))
+                .collect::<Result<Vec<_>>>()?;
+            plan
+        } else {
+            plan
         };
 
         let stage_phase = if order_by_exprs.is_empty() {
@@ -1066,6 +1112,15 @@ impl PlanParser {
                 builder.aggregate_final(input.schema(), &aggr_exprs, &group_by_exprs)
             })
             .and_then(|builder| builder.build())
+    }
+
+    fn window(&self,
+              input: &PlanNode,
+              window_exprs: &[Expression], ) {
+
+        PlanBuilder::from(&input)
+            .w
+
     }
 
     fn sort(&self, input: &PlanNode, order_by_exprs: &[Expression]) -> Result<PlanNode> {

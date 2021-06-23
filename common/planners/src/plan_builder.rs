@@ -11,7 +11,7 @@ use common_datavalues::DataSchemaRefExt;
 use common_datavalues::DataType;
 use common_exception::Result;
 
-use crate::col;
+use crate::{col, WindowPlan};
 use crate::validate_expression;
 use crate::AggregatorFinalPlan;
 use crate::AggregatorPartialPlan;
@@ -181,6 +181,20 @@ impl PlanBuilder {
             aggr_expr,
             group_expr,
         )
+    }
+
+    pub fn window(
+        &self,
+        window
+    ) -> Result<Self> {
+        Ok(Self::from(&PlanNode::Window(WindowPlan {
+            func_expr: Expression::Wildcard,
+            partition_by: vec![],
+            order_by: vec![],
+            frame: None,
+            input: Arc::new(self.plan.clone()),
+            schema: Arc::new(())
+        })))
     }
 
     /// Scan a data source
