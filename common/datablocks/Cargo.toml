@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies] # In alphabetical order
 # Workspace dependencies
 common-arrow = {path = "../arrow"}
+common-functions = {path = "../functions"}
 common-datavalues = {path = "../datavalues"}
 common-exception = {path = "../exception"}
 

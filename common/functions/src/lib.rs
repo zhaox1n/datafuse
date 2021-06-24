@@ -25,3 +25,6 @@ pub use function_column::ColumnFunction;
 pub use function_factory::FactoryFuncRef;
 pub use function_factory::FunctionFactory;
 pub use function_literal::LiteralFunction;
+
+pub use hashes::SipHasher;
+pub use hashes::IdHashBuilder;

@@ -9,3 +9,6 @@ mod hash;
 mod siphash;
 
 pub use hash::HashesFunction;
+pub use hash::IdHashBuilder;
+
+pub use siphash::SipHasher;

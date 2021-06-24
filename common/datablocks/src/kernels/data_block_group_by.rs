@@ -4,15 +4,19 @@
 
 use std::collections::HashMap;
 
-use common_datavalues::DataValue;
+use common_datavalues::{DataValue, DataArrayHashDispatcher};
 use common_exception::Result;
 
 use crate::DataBlock;
-
+use common_functions::SipHasher;
+use common_functions::IdHashBuilder;
 // Table for <group_key, (indices, keys) >
 pub type GroupIndicesTable = HashMap<Vec<u8>, (Vec<u32>, Vec<DataValue>), ahash::RandomState>;
 // Table for <(group_key, keys, block)>
 type GroupBlocksTable = Vec<(Vec<u8>, Vec<DataValue>, DataBlock)>;
+
+pub type VecGroupTable = HashMap<u64, Vec<u32>, IdHashBuilder>;
+type VecGroupBlockTable = Vec<(u64, Vec<u32>, DataBlock)>;
 
 impl DataBlock {
     /// Hash group based on row index then return indices and keys.
@@ -104,5 +108,40 @@ impl DataBlock {
         }
 
         Ok(group_blocks)
+    }
+
+    pub fn group_by_version(
+        block: &DataBlock,
+        column_names: &[String],
+    ) -> Result<VecGroupTable> {
+        let mut group_indices = VecGroupTable::with_hasher(IdHashBuilder{});
+
+        // 1. Get group by columns.
+        let mut group_columns = Vec::with_capacity(column_names.len());
+        {
+            for col in column_names {
+                group_columns.push(block.try_column_by_name(&col)?);
+            }
+        }
+
+        let hashes = DataArrayHashDispatcher::<SipHasher>::combine_hashes(&group_columns)?;
+
+        // 2. Make group with indices.
+        {
+            for row in 0..block.num_rows() {
+                let group_key = hashes.get(row).unwrap();
+
+                match group_indices.get_mut(&group_key) {
+                    None => {
+                        group_indices.insert(group_key.clone(), vec![row as u32]);
+                    }
+                    Some(v) => {
+                        v.push(row as u32);
+                    }
+                }
+            }
+        }
+
+        Ok(group_indices)
     }
 }

@@ -21,7 +21,7 @@ pub struct SipHashFunction {
     display_name: String,
 }
 
-struct SipHasher;
+pub struct SipHasher;
 
 impl SipHashFunction {
     pub fn try_create(display_name: &str) -> Result<Box<dyn Function>> {

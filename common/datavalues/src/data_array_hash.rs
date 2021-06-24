@@ -5,7 +5,7 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use common_arrow::arrow::array::Array;
+use common_arrow::arrow::array::{Array, StringArray};
 use common_arrow::arrow::array::BinaryArray;
 use common_arrow::arrow::array::GenericStringArray;
 use common_arrow::arrow::array::LargeBinaryArray;
@@ -66,6 +66,11 @@ pub trait FuseDataHasher {
     fn hash_f64(v: &f64) -> u64;
 
     fn hash_bytes(bytes: &[u8]) -> u64;
+}
+
+fn combine_hashes(l: u64, r: u64) -> u64 {
+    let hash = (17 * 37u64).wrapping_add(l);
+    hash.wrapping_mul(37).wrapping_add(r)
 }
 
 pub struct DataArrayHashDispatcher<Hasher: FuseDataHasher>(PhantomData<Hasher>);
@@ -352,4 +357,99 @@ impl<Hasher: FuseDataHasher> DataArrayHashDispatcher<Hasher> {
 
         Ok(Arc::new(hash_builder.finish()))
     }
+
+    fn hash_array<T: ArrowPrimitiveType, F: Fn(&T::Native) -> u64>(
+        input: &DataArrayRef,
+        hashes: &mut Vec<u64>,
+        _: T,
+        fun: F,
+    ) -> Result<()> {
+        let array = input
+            .as_any()
+            .downcast_ref::<PrimitiveArray<T>>()
+            .ok_or_else(|| {
+                ErrorCode::BadDataValueType(format!(
+                    "DataValue Error: Cannot downcast_array from datatype:{:?} item to:{}",
+                    input.data_type(),
+                    stringify!(PrimitiveArray<T>)
+                ))
+            })?;
+
+        for (i, hash) in hashes.iter_mut().enumerate() {
+            if !array.is_null(i) {
+                *hash = combine_hashes(fun(&array.value(i)), *hash);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn combine_hashes(columns: &Vec<&DataColumnarValue>) -> Result<Vec<u64>> {
+        let rows = columns[0].len();
+        let mut hashes = vec![0; rows];
+        let mut arrays = Vec::with_capacity(columns.len());
+
+        for input in columns {
+            if let DataColumnarValue::Array(input) = input {
+                arrays.push(input);
+            }
+        }
+
+        for col in arrays {
+            match col.data_type() {
+                DataType::UInt8 => {
+                    Self::hash_array(col, &mut hashes, UInt8Type {}, Hasher::hash_u8)?;
+                }
+                DataType::UInt16 => {
+                    Self::hash_array(col, &mut hashes, UInt16Type {} , Hasher::hash_u16)?;
+                }
+                DataType::UInt32 => {
+                    Self::hash_array(col, &mut hashes, UInt32Type {}, Hasher::hash_u32)?;
+                }
+                DataType::UInt64 => {
+                    Self::hash_array(col, &mut hashes, UInt64Type {}, Hasher::hash_u64)?;
+                }
+                DataType::Int8 => {
+                    Self::hash_array(col, &mut hashes, Int8Type {}, Hasher::hash_i8)?;
+                }
+                DataType::Int16 => {
+                    Self::hash_array(col, &mut hashes, Int16Type {}, Hasher::hash_i16)?;
+                }
+                DataType::Int32 => {
+                    Self::hash_array(col, &mut hashes, Int32Type {}, Hasher::hash_i32)?;
+                }
+                DataType::Int64 => {
+                    Self::hash_array(col, &mut hashes, Int64Type {}, Hasher::hash_i64)?;
+                }
+                DataType::Timestamp(TimeUnit::Microsecond, None) => {
+                    Self::hash_array(
+                    col,
+                    &mut hashes,
+                    TimestampMicrosecondType {}, Hasher::hash_i64
+                )?;
+                }
+                DataType::Timestamp(TimeUnit::Nanosecond, None) => {
+                    Self::hash_array(
+                    col,
+                    &mut hashes,
+                    TimestampNanosecondType {}, Hasher::hash_i64
+                )?;
+                }
+                DataType::Utf8 => {
+                    let array = col.as_any().downcast_ref::<StringArray>().unwrap();
+                    for (i, hash) in hashes.iter_mut().enumerate() {
+                        *hash = combine_hashes(Hasher::hash_bytes(array.value(i).as_bytes()), *hash);
+                    }
+                }
+                other => {
+                    // This is internal because we should have caught this before.
+                    return Result::Err(ErrorCode::BadDataValueType(format!(
+                        "DataValue Error: Cannot combine hash datatype:{:?} ",
+                        other
+                    )));
+                }
+            }
+        }
+        Ok(hashes)
+    }
 }
+
