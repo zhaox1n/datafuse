@@ -176,13 +176,13 @@ impl DataBlock {
         {
             for (hash_key, group_indices) in group_indices {
                 let mut next_keys = 0;
-                let mut toCheckNum = group_indices.len();
-                while toCheckNum > 0 {
+                let mut check_num = group_indices.len();
+                while check_num > 0 {
                     //let group_block_indices = Vec::new();
                     let current_key = group_keys_columns.get(next_keys).unwrap();
                     for i in next_keys..group_indices.len() {
                         if Self::check_key_equal(current_key, group_keys_columns.get(i).unwrap()) {
-                            toCheckNum = toCheckNum - 1;
+                            check_num = check_num - 1;
                         } else {
                             next_keys = i;
                         }
