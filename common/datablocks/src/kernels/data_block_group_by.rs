@@ -10,6 +10,8 @@ use common_exception::Result;
 use crate::DataBlock;
 use common_functions::SipHasher;
 use common_functions::IdHashBuilder;
+use std::ops::Deref;
+
 // Table for <group_key, (indices, keys) >
 pub type GroupIndicesTable = HashMap<Vec<u8>, (Vec<u32>, Vec<DataValue>), ahash::RandomState>;
 // Table for <(group_key, keys, block)>
@@ -122,7 +124,7 @@ impl DataBlock {
     pub fn group_by_version(
         block: &DataBlock,
         column_names: &[String],
-    ) -> Result<()> {
+    ) -> Result<VecGroupBlockTable> {
         let mut group_indices = VecGroupTable::with_hasher(IdHashBuilder{});
 
         // 1. Get group by columns.
@@ -177,26 +179,29 @@ impl DataBlock {
             for (hash_key, group_indices) in group_indices {
                 let mut next_keys = 0;
                 let mut check_num = group_indices.len();
+                let mut to_check_vec = vec![false; check_num];
                 while check_num > 0 {
-                    //let group_block_indices = Vec::new();
-                    let current_key = group_keys_columns.get(next_keys).unwrap();
+                    let current_key_index = *(group_indices.get(next_keys).unwrap()) as usize;
+                    let current_key = Box::new(group_keys_columns.get(current_key_index).unwrap());
+                    //to_check_vec[next_keys] = true;
+                    let mut group_per_indices = Vec::default();
                     for i in next_keys..group_indices.len() {
-                        if Self::check_key_equal(current_key, group_keys_columns.get(i).unwrap()) {
+                        let index = *(group_indices.get(i).unwrap()) as usize;
+                        let index_key = group_keys_columns.get(index).unwrap();
+                        if Self::check_key_equal(current_key.deref(), index_key) {
                             check_num = check_num - 1;
-                        } else {
+                            group_per_indices.push(index as u32);
+                            to_check_vec[i] = true;
+                        } else if !to_check_vec.get(i).unwrap() {
                             next_keys = i;
                         }
                     }
-
+                    let take_block = DataBlock::block_take_by_indices(&block, &group_per_indices)?;
+                    group_blocks.push((hash_key, current_key.to_vec(), take_block));
                 }
-
-                /*let mut group_item = Vec::default();
-
-                let take_block = DataBlock::block_take_by_indices(&block, &group_indices)?;
-                group_blocks.push((group_key, group_keys, take_block));*/
             }
         }
 
-        Ok(())
+        Ok(group_blocks)
     }
 }

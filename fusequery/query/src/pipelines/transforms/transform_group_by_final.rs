@@ -22,6 +22,7 @@ use futures::stream::StreamExt;
 
 use crate::pipelines::processors::EmptyProcessor;
 use crate::pipelines::processors::Processor;
+use common_functions::IdHashBuilder;
 
 // Table for <group_key, indices>
 type GroupFuncTable = RwLock<HashMap<Vec<u8>, Vec<Box<dyn AggregateFunction>>, ahash::RandomState>>;
@@ -29,14 +30,19 @@ type GroupFuncTable = RwLock<HashMap<Vec<u8>, Vec<Box<dyn AggregateFunction>>, a
 // Group Key ==> Group by values
 type GroupKeyTable = RwLock<HashMap<Vec<u8>, Vec<DataValue>>>;
 
+type VecGroupTable = RwLock<HashMap<u64, Vec<Box<dyn AggregateFunction>>, IdHashBuilder>>;
+type VecGroupBlockTable = RwLock<HashMap<u64, Vec<DataValue>, IdHashBuilder>>;
+
 pub struct GroupByFinalTransform {
     aggr_exprs: Vec<Expression>,
     group_exprs: Vec<Expression>,
     schema: DataSchemaRef,
     schema_before_group_by: DataSchemaRef,
     input: Arc<dyn Processor>,
-    groups: GroupFuncTable,
-    keys: GroupKeyTable,
+    //groups: GroupFuncTable,
+    //keys: GroupKeyTable,
+    groups: VecGroupTable,
+    keys: VecGroupBlockTable,
 }
 
 impl GroupByFinalTransform {
@@ -52,8 +58,10 @@ impl GroupByFinalTransform {
             schema,
             schema_before_group_by,
             input: Arc::new(EmptyProcessor::create()),
-            groups: RwLock::new(HashMap::default()),
-            keys: RwLock::new(HashMap::default()),
+            /*groups: RwLock::new(HashMap::default()),
+            keys: RwLock::new(HashMap::default()),*/
+            groups: RwLock::new(HashMap::with_hasher(IdHashBuilder{})),
+            keys: RwLock::new(HashMap::with_hasher(IdHashBuilder{})),
         }
     }
 }
@@ -95,7 +103,7 @@ impl Processor for GroupByFinalTransform {
             let mut keys = self.keys.write();
             let block = block?;
             for row in 0..block.num_rows() {
-                if let DataValue::Binary(Some(group_key)) =
+                if let DataValue::UInt64(Some(group_key)) =
                     DataValue::try_from_column(block.column(1 + aggr_funcs_len), row)?
                 {
                     match groups.get_mut(&group_key) {

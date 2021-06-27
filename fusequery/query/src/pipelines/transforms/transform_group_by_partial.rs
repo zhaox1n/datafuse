@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use common_aggregate_functions::AggregateFunction;
-use common_arrow::arrow::array::BinaryBuilder;
+use common_arrow::arrow::array::{BinaryBuilder, UInt64Array};
 use common_arrow::arrow::array::StringBuilder;
 use common_datablocks::DataBlock;
 use common_datavalues::DataArrayRef;
@@ -23,6 +23,7 @@ use common_streams::DataBlockStream;
 use common_streams::SendableDataBlockStream;
 use common_tracing::tracing;
 use futures::stream::StreamExt;
+use common_functions::IdHashBuilder;
 
 use crate::pipelines::processors::EmptyProcessor;
 use crate::pipelines::processors::Processor;
@@ -39,13 +40,25 @@ type GroupFuncTable = RwLock<
     >,
 >;
 
+type VecGroupFuncTable = RwLock<
+    HashMap<
+        u64,
+        (
+            Vec<(Box<dyn AggregateFunction>, String, Vec<String>)>,
+            Vec<DataValue>,
+        ),
+        IdHashBuilder,
+    >,
+>;
+
 pub struct GroupByPartialTransform {
     aggr_exprs: Vec<Expression>,
     group_exprs: Vec<Expression>,
     schema: DataSchemaRef,
     schema_before_group_by: DataSchemaRef,
     input: Arc<dyn Processor>,
-    groups: GroupFuncTable,
+    //groups: GroupFuncTable,
+    groups: VecGroupFuncTable,
 }
 
 impl GroupByPartialTransform {
@@ -61,7 +74,8 @@ impl GroupByPartialTransform {
             schema,
             schema_before_group_by,
             input: Arc::new(EmptyProcessor::create()),
-            groups: RwLock::new(HashMap::default()),
+            //groups: RwLock::new(HashMap::default()),
+            groups: RwLock::new(HashMap::with_hasher(IdHashBuilder{}))
         }
     }
 }
@@ -131,7 +145,7 @@ impl Processor for GroupByPartialTransform {
                 .collect::<Vec<_>>();
 
             // 1.1 and 1.2.
-            let group_blocks = DataBlock::group_by(&block, &cols)?;
+            let group_blocks = DataBlock::group_by_version(&block, &cols)?;
             // 1.3 Apply take blocks to aggregate function by group_key.
             {
                 for (group_key, group_keys, take_block) in group_blocks {
@@ -196,7 +210,7 @@ impl Processor for GroupByPartialTransform {
             .map(|_| StringBuilder::new(groups.len()))
             .collect();
 
-        let mut group_key_builder = BinaryBuilder::new(groups.len());
+        /*let mut group_key_builder = BinaryBuilder::new(groups.len());
         for (key, (funcs, values)) in groups.iter() {
             for (idx, func) in funcs.iter().enumerate() {
                 let states = DataValue::Struct(func.0.accumulate_result()?);
@@ -209,13 +223,25 @@ impl Processor for GroupByPartialTransform {
             builders[aggr_len].append_value(key_ser.as_str())?;
 
             group_key_builder.append_value(key)?;
+        }*/
+        let mut group_key_hash_builder =  UInt64Array::builder(groups.len());
+        for (key, (funcs, values)) in groups.iter() {
+            for (idx, func) in funcs.iter().enumerate() {
+                let states = DataValue::Struct(func.0.accumulate_result()?);
+                let ser = serde_json::to_string(&states)?;
+                builders[idx].append_value(ser.as_str())?;
+            }
+            let key_ser = serde_json::to_string(&DataValue::Struct(values.clone()))?;
+            builders[aggr_len].append_value(key_ser.as_str())?;
+            group_key_hash_builder.append_value(key.clone());
         }
 
         let mut columns: Vec<DataArrayRef> = Vec::with_capacity(self.schema.fields().len());
         for mut builder in builders {
             columns.push(Arc::new(builder.finish()));
         }
-        columns.push(Arc::new(group_key_builder.finish()));
+        //columns.push(Arc::new(group_key_builder.finish()));
+        columns.push(Arc::new(group_key_hash_builder.finish()));
 
         let block = DataBlock::create_by_array(self.schema.clone(), columns);
         Ok(Box::pin(DataBlockStream::create(
