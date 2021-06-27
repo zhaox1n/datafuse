@@ -679,6 +679,7 @@ dependencies = [
  "common-datavalues",
  "common-exception",
  "common-functions",
+ "hashbrown 0.11.2",
  "prettytable-rs",
 ]
 
@@ -1501,6 +1502,7 @@ dependencies = [
  "ctrlc",
  "env_logger",
  "futures",
+ "hashbrown 0.11.2",
  "indexmap",
  "lazy_static",
  "log 0.4.14",

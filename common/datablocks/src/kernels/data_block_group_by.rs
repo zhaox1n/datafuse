@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0.
 
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 use common_datavalues::{DataValue, DataArrayHashDispatcher, combine_hashes_v2};
 use common_exception::Result;
