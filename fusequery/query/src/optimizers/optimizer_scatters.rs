@@ -114,6 +114,7 @@ impl ScattersOptimizer {
             status.push(OptimizeKind::Local);
             return Ok(PlanNode::AggregatorPartial(AggregatorPartialPlan {
                 group_expr: plan.group_expr.clone(),
+                hash_group_expr: plan.hash_group_expr.clone(),
                 aggr_expr: plan.aggr_expr.clone(),
                 schema: plan.schema.clone(),
                 input: Arc::new(input),
@@ -129,6 +130,7 @@ impl ScattersOptimizer {
                     scatters_expr: Expression::Literal(DataValue::UInt64(Some(0))),
                     input: Arc::new(PlanNode::AggregatorPartial(AggregatorPartialPlan {
                         group_expr: plan.group_expr.clone(),
+                        hash_group_expr: plan.hash_group_expr.clone(),
                         aggr_expr: plan.aggr_expr.clone(),
                         schema: plan.schema.clone(),
                         input: Arc::new(input),
@@ -146,6 +148,7 @@ impl ScattersOptimizer {
                     },
                     input: Arc::new(PlanNode::AggregatorPartial(AggregatorPartialPlan {
                         group_expr: plan.group_expr.clone(),
+                        hash_group_expr: plan.hash_group_expr.clone(),
                         aggr_expr: plan.aggr_expr.clone(),
                         schema: plan.schema.clone(),
                         input: Arc::new(input),

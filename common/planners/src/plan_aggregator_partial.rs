@@ -12,6 +12,7 @@ use crate::PlanNode;
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq)]
 pub struct AggregatorPartialPlan {
     pub group_expr: Vec<Expression>,
+    pub hash_group_expr: Vec<Expression>,
     pub aggr_expr: Vec<Expression>,
     pub schema: DataSchemaRef,
     pub input: Arc<PlanNode>,

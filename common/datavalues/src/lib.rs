@@ -45,6 +45,7 @@ pub use data_array::*;
 pub use data_array_arithmetic::DataArrayArithmetic;
 pub use data_array_comparison::DataArrayComparison;
 pub use data_array_hash::DataArrayHashDispatcher;
+pub use data_array_hash::combine_hashes_v2;
 pub use data_array_hash::FuseDataHasher;
 pub use data_array_logic::DataArrayLogic;
 pub use data_array_merge_sort::DataArrayMerge;

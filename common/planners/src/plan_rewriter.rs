@@ -93,6 +93,7 @@ pub trait PlanRewriter<'plan> {
             schema: plan.schema.clone(),
             aggr_expr: plan.aggr_expr.clone(),
             group_expr: plan.group_expr.clone(),
+            hash_group_expr: plan.hash_group_expr.clone(),
             input: Arc::new(self.rewrite_plan_node(plan.input.as_ref())?),
         }))
     }

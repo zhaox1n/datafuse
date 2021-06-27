@@ -112,6 +112,7 @@ impl PlanBuilder {
         schema_before_groupby: DataSchemaRef,
         aggr_expr: &[Expression],
         group_expr: &[Expression],
+        hash_group_expr: Option<&[Expression]>
     ) -> Result<Self> {
         Ok(match mode {
             AggregateMode::Partial => {
@@ -128,6 +129,7 @@ impl PlanBuilder {
                     // key:  group id, DataTypeBinary
                     partial_fields.push(DataField::new("_group_keys", DataType::Utf8, false));
                     partial_fields.push(DataField::new("_group_by_key", DataType::Binary, false));
+                    partial_fields.push(DataField::new("_hash_group_keys", DataType::UInt64, false));
                 }
 
                 Self::from(&PlanNode::AggregatorPartial(AggregatorPartialPlan {
@@ -135,6 +137,7 @@ impl PlanBuilder {
                     aggr_expr: aggr_expr.to_vec(),
                     group_expr: group_expr.to_vec(),
                     schema: DataSchemaRefExt::create(partial_fields),
+                    hash_group_expr: hash_group_expr.unwrap().to_vec(),
                 }))
             }
             AggregateMode::Final => {
@@ -159,12 +162,14 @@ impl PlanBuilder {
         &self,
         aggr_expr: &[Expression],
         group_expr: &[Expression],
+        hash_group_expr: Option<&[Expression]>,
     ) -> Result<Self> {
         self.aggregate(
             AggregateMode::Partial,
             self.plan.schema(),
             aggr_expr,
             group_expr,
+            hash_group_expr,
         )
     }
 
@@ -180,6 +185,7 @@ impl PlanBuilder {
             schema_before_group_by,
             aggr_expr,
             group_expr,
+            None
         )
     }
 

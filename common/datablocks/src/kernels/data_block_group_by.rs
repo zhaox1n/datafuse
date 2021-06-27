@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use common_datavalues::{DataValue, DataArrayHashDispatcher};
+use common_datavalues::{DataValue, DataArrayHashDispatcher, combine_hashes_v2};
 use common_exception::Result;
 
 use crate::DataBlock;
@@ -17,7 +17,7 @@ pub type GroupIndicesTable = HashMap<Vec<u8>, (Vec<u32>, Vec<DataValue>), ahash:
 // Table for <(group_key, keys, block)>
 type GroupBlocksTable = Vec<(Vec<u8>, Vec<DataValue>, DataBlock)>;
 
-pub type VecGroupTable = HashMap<u64, Vec<u32>, IdHashBuilder>;
+pub type VecGroupTable = HashMap<u64, (Vec<u32>, Vec<DataValue>), IdHashBuilder>;
 type VecGroupBlockTable = Vec<(u64, Vec<DataValue>, DataBlock)>;
 
 impl DataBlock {
@@ -124,6 +124,7 @@ impl DataBlock {
     pub fn group_by_version(
         block: &DataBlock,
         column_names: &[String],
+        hash_group_names: &[String],
     ) -> Result<VecGroupBlockTable> {
         let mut group_indices = VecGroupTable::with_hasher(IdHashBuilder{});
 
@@ -132,6 +133,13 @@ impl DataBlock {
         {
             for col in column_names {
                 group_columns.push(block.try_column_by_name(&col)?);
+            }
+        }
+
+        let mut hash_group_columns = Vec::with_capacity(hash_group_names.len());
+        {
+            for col in hash_group_names {
+                hash_group_columns.push(block.try_column_by_name(&col)?);
             }
         }
 
@@ -145,7 +153,7 @@ impl DataBlock {
             }
         }
 
-        let hashes = DataArrayHashDispatcher::<SipHasher>::combine_hashes(&group_columns)?;
+        let hashes = combine_hashes_v2(&group_columns)?;
 
         // 2. Make group with indices.
         {
@@ -153,16 +161,20 @@ impl DataBlock {
                 let key = hashes.get(row).unwrap();
                 match group_indices.get_mut(key) {
                     None => {
-                        group_indices.insert(key.clone(), vec![row as u32]);
+                        let mut group_keys = Vec::with_capacity(group_key_len);
+                        for col in &group_columns {
+                            group_keys.push(DataValue::try_from_column(col, row)?);
+                        }
+                        group_indices.insert(key.clone(), (vec![row as u32], group_keys));
                     }
-                    Some(v) => {
+                    Some((v, _)) => {
                         v.push(row as u32);
                     }
                 }
             }
         }
 
-        let mut group_keys_columns = Vec::with_capacity(group_columns.get(0).unwrap().len());
+        /*let mut group_keys_columns = Vec::with_capacity(group_columns.get(0).unwrap().len());
         {
             for row in 0..group_columns.get(0).unwrap().len() {
                 let mut group_keys = Vec::with_capacity(group_key_len);
@@ -171,34 +183,41 @@ impl DataBlock {
                 }
                 group_keys_columns.push(group_keys)
             }
-        }
+        }*/
 
         // 3. Make Group block
         let mut group_blocks = VecGroupBlockTable::default();
         {
-            for (hash_key, group_indices) in group_indices {
-                let mut next_keys = 0;
-                let mut check_num = group_indices.len();
-                let mut to_check_vec = vec![false; check_num];
-                while check_num > 0 {
+            for (hash_key, (group_indices, key)) in group_indices {
+                //let mut next_keys = 0;
+                //let mut check_num = group_indices.len();
+                //let mut to_check_vec = vec![false; check_num];
+                /*while check_num > 0 {
                     let current_key_index = *(group_indices.get(next_keys).unwrap()) as usize;
-                    let current_key = Box::new(group_keys_columns.get(current_key_index).unwrap());
+                    //let current_key = Box::new(group_keys_columns.get(current_key_index).unwrap());
                     //to_check_vec[next_keys] = true;
                     let mut group_per_indices = Vec::default();
                     for i in next_keys..group_indices.len() {
                         let index = *(group_indices.get(i).unwrap()) as usize;
-                        let index_key = group_keys_columns.get(index).unwrap();
-                        if Self::check_key_equal(current_key.deref(), index_key) {
+                        //let index_key = group_keys_columns.get(index).unwrap();
+                        /*if Self::check_key_equal(current_key.deref(), index_key) {
                             check_num = check_num - 1;
                             group_per_indices.push(index as u32);
                             to_check_vec[i] = true;
                         } else if !to_check_vec.get(i).unwrap() {
                             next_keys = i;
-                        }
+                        }*/
+                        check_num = check_num - 1;
+                        group_per_indices.push(index as u32);
+                        to_check_vec[i] = true;
                     }
                     let take_block = DataBlock::block_take_by_indices(&block, &group_per_indices)?;
                     group_blocks.push((hash_key, current_key.to_vec(), take_block));
-                }
+                }*/
+                //let take_block = DataBlock::block_take_by_indices(&block, &group_per_indices)?;
+                //group_blocks.push((hash_key, key, take_block));
+                let take_block = DataBlock::block_take_by_indices(&block, &group_indices)?;
+                group_blocks.push((hash_key, key, take_block));
             }
         }
 

@@ -450,9 +450,22 @@ impl PlanParser {
 
         let has_aggr = aggr_exprs.len() + group_by_exprs.len() > 0;
         let (plan, having_expr_post_aggr_opt) = if has_aggr {
+            let mut hash_group_exprs = Vec::with_capacity(group_by_exprs.len());
+
+            for group_expr in group_by_exprs.iter() {
+                let mut args = Vec::with_capacity(1);
+                args.push(group_expr.clone());
+
+                hash_group_exprs.push(Expression::ScalarFunction {
+                    op: "siphash".to_string(),
+                    args
+                })
+            }
+
             let aggr_projection_exprs = group_by_exprs
                 .iter()
                 .chain(aggr_exprs.iter())
+                .chain(hash_group_exprs.iter())
                 .cloned()
                 .collect::<Vec<_>>();
 
@@ -463,7 +476,7 @@ impl PlanParser {
             // inner expression=[(number + 1), (number % 3)]
             let plan = self
                 .expression(&plan, &before_aggr_exprs, "Before GroupBy")
-                .and_then(|input| self.aggregate(&input, &aggr_exprs, &group_by_exprs))?;
+                .and_then(|input| self.aggregate(&input, &aggr_exprs, &group_by_exprs, &hash_group_exprs))?;
 
             // After aggregation, these are all of the columns that will be
             // available to next phases of planning.
@@ -965,8 +978,14 @@ impl PlanParser {
         input: &PlanNode,
         aggr_exprs: &[Expression],
         group_by_exprs: &[Expression],
+        hash_group_by_exprs: &[Expression],
     ) -> Result<PlanNode> {
         let aggr_exprs = aggr_exprs
+            .iter()
+            .map(|expr| rebase_expr_from_input(expr, &input.schema()))
+            .collect::<Result<Vec<_>>>()?;
+
+        let hash_group_exprts = hash_group_by_exprs
             .iter()
             .map(|expr| rebase_expr_from_input(expr, &input.schema()))
             .collect::<Result<Vec<_>>>()?;
@@ -980,7 +999,7 @@ impl PlanParser {
         // S1: Apply a fragment plan for distributed planners split.
         // S2: Apply a final aggregator plan.
         PlanBuilder::from(&input)
-            .aggregate_partial(&aggr_exprs, &group_by_exprs)
+            .aggregate_partial(&aggr_exprs, &group_by_exprs, Some(&hash_group_by_exprs))
             .and_then(|builder| {
                 builder.aggregate_final(input.schema(), &aggr_exprs, &group_by_exprs)
             })

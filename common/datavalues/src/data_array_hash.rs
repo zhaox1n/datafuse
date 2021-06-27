@@ -5,7 +5,7 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use common_arrow::arrow::array::{Array, StringArray};
+use common_arrow::arrow::array::{Array};
 use common_arrow::arrow::array::BinaryArray;
 use common_arrow::arrow::array::GenericStringArray;
 use common_arrow::arrow::array::LargeBinaryArray;
@@ -45,7 +45,7 @@ use common_arrow::arrow::datatypes::UInt8Type;
 use common_exception::ErrorCode;
 use common_exception::Result;
 
-use crate::DataArrayRef;
+use crate::{DataArrayRef, UInt32Array};
 use crate::DataColumnarValue;
 use crate::DataValue;
 
@@ -358,7 +358,7 @@ impl<Hasher: FuseDataHasher> DataArrayHashDispatcher<Hasher> {
         Ok(Arc::new(hash_builder.finish()))
     }
 
-    fn hash_array<T: ArrowPrimitiveType, F: Fn(&T::Native) -> u64>(
+    /*fn hash_array<T: ArrowPrimitiveType, F: Fn(&T::Native) -> u64>(
         input: &DataArrayRef,
         hashes: &mut Vec<u64>,
         _: T,
@@ -450,6 +450,48 @@ impl<Hasher: FuseDataHasher> DataArrayHashDispatcher<Hasher> {
             }
         }
         Ok(hashes)
+    }*/
+}
+
+pub fn combine_hashes_v2(hash_columns: &Vec<&DataColumnarValue>) -> Result<Vec<u64>> {
+    let rows = hash_columns[0].len();
+    let mut hashes = vec![0; rows];
+    let mut arrays = Vec::with_capacity(hash_columns.len());
+
+    for input in hash_columns {
+        if let DataColumnarValue::Array(input) = input {
+            arrays.push(input);
+        }
     }
+
+    for col in arrays {
+        match col.data_type() {
+            DataType::UInt64 => {
+                let array = col
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<UInt64Type>>()
+                    .ok_or_else(|| {
+                        ErrorCode::BadDataValueType(format!(
+                            "DataValue Error: Cannot downcast_array from datatype:{:?} item to:{}",
+                            col.data_type(),
+                            stringify!(PrimitiveArray<UInt64Type>)
+                        ))
+                    })?;
+                for (i, hash) in hashes.iter_mut().enumerate() {
+                    if !array.is_null(i) {
+                        *hash = combine_hashes(array.value(i), *hash);
+                    }
+                }
+            }
+            other => {
+                // This is internal because we should have caught this before.
+                return Result::Err(ErrorCode::BadDataValueType(format!(
+                    "DataValue Error: Cannot combine hash datatype:{:?} ",
+                    other
+                )));
+            }
+        }
+    }
+    Ok(hashes)
 }
 

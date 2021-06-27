@@ -54,6 +54,7 @@ type VecGroupFuncTable = RwLock<
 pub struct GroupByPartialTransform {
     aggr_exprs: Vec<Expression>,
     group_exprs: Vec<Expression>,
+    hash_group_exprs: Vec<Expression>,
     schema: DataSchemaRef,
     schema_before_group_by: DataSchemaRef,
     input: Arc<dyn Processor>,
@@ -67,10 +68,12 @@ impl GroupByPartialTransform {
         schema_before_group_by: DataSchemaRef,
         aggr_exprs: Vec<Expression>,
         group_exprs: Vec<Expression>,
+        hash_group_exprs: Vec<Expression>,
     ) -> Self {
         Self {
             aggr_exprs,
             group_exprs,
+            hash_group_exprs,
             schema,
             schema_before_group_by,
             input: Arc::new(EmptyProcessor::create()),
@@ -144,8 +147,13 @@ impl Processor for GroupByPartialTransform {
                 .map(|x| x.column_name())
                 .collect::<Vec<_>>();
 
+            let hash_cols = self.hash_group_exprs
+                .iter()
+                .map(|x| x.column_name())
+                .collect::<Vec<_>>();
+
             // 1.1 and 1.2.
-            let group_blocks = DataBlock::group_by_version(&block, &cols)?;
+            let group_blocks = DataBlock::group_by_version(&block, &cols, &hash_cols)?;
             // 1.3 Apply take blocks to aggregate function by group_key.
             {
                 for (group_key, group_keys, take_block) in group_blocks {
@@ -233,7 +241,7 @@ impl Processor for GroupByPartialTransform {
             }
             let key_ser = serde_json::to_string(&DataValue::Struct(values.clone()))?;
             builders[aggr_len].append_value(key_ser.as_str())?;
-            group_key_hash_builder.append_value(key.clone());
+            group_key_hash_builder.append_value(key.clone())?;
         }
 
         let mut columns: Vec<DataArrayRef> = Vec::with_capacity(self.schema.fields().len());

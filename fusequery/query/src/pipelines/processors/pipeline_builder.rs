@@ -161,6 +161,7 @@ impl PipelineBuilder {
                     plan.input.schema(),
                     plan.aggr_expr.clone(),
                     plan.group_expr.clone(),
+                    plan.hash_group_expr.clone(),
                 )))
             })?;
         }
