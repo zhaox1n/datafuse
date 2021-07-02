@@ -11,6 +11,39 @@ use crate::DFBooleanArray;
 pub struct DataArrayFilter;
 
 impl DataArrayFilter {
+
+    pub fn filter_count(filter: &DFBooleanArray) -> usize {
+        let values = filter.downcast_ref().values();
+        values.count_set_bits()
+    }
+
+    pub fn filter(column: Series, predicate: &DFBooleanArray) -> Result<Series> {
+        if predicate.null_count() > 0 {
+            // this greatly simplifies subsequent filtering code
+            // now we only have a boolean mask to deal with
+            let predicate = arrow::compute::prep_null_mask_filter(predicate.downcast_ref());
+            return Self::filter(column, &predicate);
+        }
+        let filter_count = Self::filter_count(DFBooleanArray);
+        match filter_count {
+            0 => {
+                // return empty
+                Ok(arrow::array::new_empty_array(array.data_type()).into_series())
+            }
+            len if len == array.len() => {
+                // return all
+                let data = array.data().clone();
+                Ok(arrow::array::make_array(data).into_series())
+            }
+            _ => {
+                // actually filter
+                let data = array.data().clone();
+                Ok(arrow::array::make_array(data).into_series())
+            }
+        }
+
+    }
+
     pub fn filter_batch_array(
         array: Vec<Series>,
         predicate: &DFBooleanArray,

@@ -676,6 +676,7 @@ dependencies = [
  "common-exception",
  "num",
  "ordered-float 2.5.1",
+ "packed_simd_2",
  "paste",
  "pretty_assertions",
  "serde",
