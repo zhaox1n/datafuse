@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use common_datavalues::columns::DataColumn;
 use common_datavalues::is_numeric;
-use common_datavalues::DataSchema;
+use common_datavalues::DataField;
 use common_datavalues::DataType;
 use common_datavalues::DataValue;
 use common_exception::ErrorCode;
@@ -21,7 +21,14 @@ pub struct SleepFunction {
 }
 
 impl SleepFunction {
-    pub fn try_create(display_name: &str) -> Result<Box<dyn Function>> {
+    pub fn try_create(display_name: &str, arguments: Vec<DataField>) -> Result<Box<dyn Function>> {
+        if !is_numeric(arguments[0].data_type()) {
+            return Err(ErrorCode::BadArguments(format!(
+                "Illegal type {} of argument of function {}, expected numeric",
+                &arguments[0].data_type(),
+                display_name
+            )));
+        }
         Ok(Box::new(SleepFunction {
             display_name: display_name.to_string(),
         }))
@@ -37,19 +44,11 @@ impl Function for SleepFunction {
         1
     }
 
-    fn return_type(&self, args: &[DataType]) -> Result<DataType> {
-        if !is_numeric(&args[0]) {
-            return Err(ErrorCode::BadArguments(format!(
-                "Illegal type {} of argument of function {}, expected numeric",
-                args[0].to_string(),
-                self.display_name
-            )));
-        }
-
+    fn return_type(&self) -> Result<DataType> {
         Ok(DataType::UInt8)
     }
 
-    fn nullable(&self, _input_schema: &DataSchema) -> Result<bool> {
+    fn nullable(&self) -> Result<bool> {
         Ok(false)
     }
 

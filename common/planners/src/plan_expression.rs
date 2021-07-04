@@ -115,9 +115,43 @@ impl Expression {
         })
     }
 
-    // TODO
-    pub fn nullable(&self, _input_schema: &DataSchemaRef) -> Result<bool> {
-        Ok(false)
+    pub fn nullable(&self, input_schema: &DataSchemaRef) -> Result<bool> {
+        match self {
+            Expression::Alias(_, expr) => expr.nullable(input_schema),
+            Expression::Column(s) => Ok(input_schema.field_with_name(s)?.is_nullable()),
+            Expression::Literal(v) => Ok(v.is_null()),
+            Expression::Exists(_) => Ok(false),
+            Expression::BinaryExpression { op, left, right } => {
+                let arg_fields = vec![
+                    left.to_data_field(input_schema)?,
+                    right.to_data_field(input_schema)?,
+                ];
+                let func = FunctionFactory::get(op, arg_fields)?;
+                func.nullable()
+            }
+            Expression::UnaryExpression { op, expr } => {
+                let arg_fields = vec![expr.to_data_field(input_schema)?];
+                let func = FunctionFactory::get(op, arg_fields)?;
+                func.nullable()
+            }
+            Expression::ScalarFunction { op, args } => {
+                let mut arg_fields = Vec::with_capacity(args.len());
+                for arg in args {
+                    arg_fields.push(arg.to_data_field(input_schema)?);
+                }
+                let func = FunctionFactory::get(op, arg_fields)?;
+                func.nullable()
+            }
+            Expression::AggregateFunction { .. } => {
+                let func = self.to_aggregate_function(input_schema)?;
+                func.nullable()
+            }
+            Expression::Wildcard => Result::Err(ErrorCode::IllegalDataType(
+                "Wildcard expressions are not valid to get nullable",
+            )),
+            Expression::Cast { expr, .. } => expr.nullable(input_schema),
+            Expression::Sort { expr, .. } => expr.nullable(input_schema),
+        }
     }
 
     pub fn to_data_type(&self, input_schema: &DataSchemaRef) -> Result<DataType> {
@@ -127,27 +161,27 @@ impl Expression {
             Expression::Literal(v) => Ok(v.data_type()),
             Expression::Exists(_p) => Ok(DataType::Boolean),
             Expression::BinaryExpression { op, left, right } => {
-                let arg_types = vec![
-                    left.to_data_type(input_schema)?,
-                    right.to_data_type(input_schema)?,
+                let arg_fields = vec![
+                    left.to_data_field(input_schema)?,
+                    right.to_data_field(input_schema)?,
                 ];
-                let func = FunctionFactory::get(op)?;
-                func.return_type(&arg_types)
+                let func = FunctionFactory::get(op, arg_fields)?;
+                func.return_type()
             }
 
             Expression::UnaryExpression { op, expr } => {
-                let arg_types = vec![expr.to_data_type(input_schema)?];
-                let func = FunctionFactory::get(op)?;
-                func.return_type(&arg_types)
+                let arg_fields = vec![expr.to_data_field(input_schema)?];
+                let func = FunctionFactory::get(op, arg_fields)?;
+                func.return_type()
             }
 
             Expression::ScalarFunction { op, args } => {
-                let mut arg_types = Vec::with_capacity(args.len());
+                let mut arg_fields = Vec::with_capacity(args.len());
                 for arg in args {
-                    arg_types.push(arg.to_data_type(input_schema)?);
+                    arg_fields.push(arg.to_data_field(input_schema)?);
                 }
-                let func = FunctionFactory::get(op)?;
-                func.return_type(&arg_types)
+                let func = FunctionFactory::get(op, arg_fields)?;
+                func.return_type()
             }
             Expression::AggregateFunction { .. } => {
                 let func = self.to_aggregate_function(input_schema)?;

@@ -42,7 +42,7 @@ impl AggregateFunction for AggregateMaxFunction {
         Ok(self.arguments[0].data_type().clone())
     }
 
-    fn nullable(&self, _input_schema: &DataSchema) -> Result<bool> {
+    fn nullable(&self) -> Result<bool> {
         Ok(false)
     }
 

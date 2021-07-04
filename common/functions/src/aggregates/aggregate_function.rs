@@ -6,7 +6,6 @@ use std::any::Any;
 use std::fmt;
 
 use common_datavalues::columns::DataColumn;
-use common_datavalues::DataSchema;
 use common_datavalues::DataType;
 use common_datavalues::DataValue;
 use common_exception::Result;
@@ -15,7 +14,7 @@ use dyn_clone::DynClone;
 pub trait AggregateFunction: fmt::Display + Sync + Send + DynClone {
     fn name(&self) -> &str;
     fn return_type(&self) -> Result<DataType>;
-    fn nullable(&self, _input_schema: &DataSchema) -> Result<bool>;
+    fn nullable(&self) -> Result<bool>;
 
     fn as_any(&self) -> &dyn Any;
 

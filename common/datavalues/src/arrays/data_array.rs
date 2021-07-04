@@ -57,6 +57,10 @@ impl<T> DataArray<T> {
         self.array.null_count()
     }
 
+    pub fn all_is_not_null(&self) -> bool {
+        self.null_count() == 0
+    }
+
     pub fn all_is_null(&self) -> bool {
         self.null_count() == self.len()
     }

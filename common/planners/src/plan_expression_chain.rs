@@ -77,17 +77,17 @@ impl ExpressionChain {
             } => {
                 self.add_expr(nested_expr)?;
 
-                let func = FunctionFactory::get(op)?;
-                let arg_types = vec![nested_expr.to_data_type(&self.schema)?];
+                let arg_fields = vec![nested_expr.to_data_field(&self.schema)?];
+                let func = FunctionFactory::get(op, arg_fields.clone())?;
 
                 let function = ActionFunction {
                     name: expr.column_name(),
                     func_name: op.clone(),
                     is_aggregated: false,
-                    arg_names: vec![nested_expr.column_name()],
-                    arg_types: arg_types.clone(),
-                    arg_fields: vec![],
-                    return_type: func.return_type(&arg_types)?,
+                    /*arg_names: vec![nested_expr.column_name()],
+                    arg_types: arg_types.clone(),*/
+                    arg_fields,
+                    return_type: func.return_type()?,
                 };
 
                 self.actions.push(ExpressionAction::Function(function));
@@ -97,20 +97,20 @@ impl ExpressionChain {
                 self.add_expr(left)?;
                 self.add_expr(right)?;
 
-                let func = FunctionFactory::get(op)?;
-                let arg_types = vec![
-                    left.to_data_type(&self.schema)?,
-                    right.to_data_type(&self.schema)?,
+                let arg_fields = vec![
+                    left.to_data_field(&self.schema)?,
+                    right.to_data_field(&self.schema)?,
                 ];
+                let func = FunctionFactory::get(op, arg_fields.clone())?;
 
                 let function = ActionFunction {
                     name: expr.column_name(),
                     func_name: op.clone(),
                     is_aggregated: false,
-                    arg_names: vec![left.column_name(), right.column_name()],
-                    arg_types: arg_types.clone(),
-                    arg_fields: vec![],
-                    return_type: func.return_type(&arg_types)?,
+                    /*arg_names: vec![left.column_name(), right.column_name()],
+                    arg_types: arg_types.clone(),*/
+                    arg_fields,
+                    return_type: func.return_type()?,
                 };
 
                 self.actions.push(ExpressionAction::Function(function));
@@ -121,20 +121,20 @@ impl ExpressionChain {
                     self.add_expr(expr)?;
                 }
 
-                let func = FunctionFactory::get(op)?;
-                let arg_types = args
-                    .iter()
-                    .map(|action| action.to_data_type(&self.schema))
-                    .collect::<Result<Vec<_>>>()?;
+                let mut arg_fields = Vec::with_capacity(args.len());
+                for arg in args {
+                    arg_fields.push(arg.to_data_field(&self.schema)?)
+                }
+                let func = FunctionFactory::get(op, arg_fields.clone())?;
 
                 let function = ActionFunction {
                     name: expr.column_name(),
                     func_name: op.clone(),
                     is_aggregated: false,
-                    arg_names: args.iter().map(|action| action.column_name()).collect(),
-                    arg_types: arg_types.clone(),
-                    arg_fields: vec![],
-                    return_type: func.return_type(&arg_types)?,
+                    /*arg_names: args.iter().map(|action| action.column_name()).collect(),
+                    arg_types: vec![],*/
+                    arg_fields,
+                    return_type: func.return_type()?,
                 };
 
                 self.actions.push(ExpressionAction::Function(function));
@@ -151,8 +151,8 @@ impl ExpressionChain {
                     name: expr.column_name(),
                     func_name: op.clone(),
                     is_aggregated: true,
-                    arg_types: vec![],
-                    arg_names: vec![],
+                    /*arg_types: vec![],
+                    arg_names: vec![],*/
                     arg_fields,
                     return_type: func.return_type()?,
                 };
@@ -169,13 +169,14 @@ impl ExpressionChain {
                 data_type,
             } => {
                 self.add_expr(sub_expr)?;
+                let arg_fields = vec![sub_expr.to_data_field(&self.schema)?];
                 let function = ActionFunction {
                     name: expr.column_name(),
                     func_name: "cast".to_string(),
                     is_aggregated: false,
-                    arg_names: vec![sub_expr.column_name()],
-                    arg_types: vec![sub_expr.to_data_type(&self.schema)?],
-                    arg_fields: vec![],
+                    /*arg_names: vec![sub_expr.column_name()],
+                    arg_types: vec![sub_expr.to_data_type(&self.schema)?],*/
+                    arg_fields,
                     return_type: data_type.clone(),
                 };
 

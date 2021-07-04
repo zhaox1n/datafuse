@@ -4,7 +4,11 @@
 
 #[cfg(test)]
 mod cast_test;
+#[cfg(test)]
+mod condition_test;
 
 mod cast;
+mod condition;
 
 pub use cast::CastFunction;
+pub use condition::ConditionFunction;

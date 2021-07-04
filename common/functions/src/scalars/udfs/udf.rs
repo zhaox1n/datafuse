@@ -4,6 +4,7 @@
 
 use common_exception::Result;
 
+use crate::scalars::ConditionFunction;
 use crate::scalars::CrashMeFunction;
 use crate::scalars::DatabaseFunction;
 use crate::scalars::FactoryFuncRef;
@@ -24,6 +25,8 @@ impl UdfFunction {
         map.insert("version", VersionFunction::try_create);
         map.insert("sleep", SleepFunction::try_create);
         map.insert("crashme", CrashMeFunction::try_create);
+
+        map.insert("if", ConditionFunction::try_create);
         Ok(())
     }
 }

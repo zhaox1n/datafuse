@@ -43,7 +43,7 @@ pub trait ArrayCompare<Rhs>: Debug {
     /// Check for inequality.
     fn neq(&self, _rhs: Rhs) -> Result<DFBooleanArray> {
         Err(ErrorCode::BadDataValueType(format!(
-            "Unsupported compare operation: neq for {:?}",
+            "Unsupported compare operation: eq for {:?}",
             self,
         )))
     }

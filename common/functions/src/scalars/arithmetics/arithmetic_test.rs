@@ -22,11 +22,12 @@ fn test_arithmetic_function() -> Result<()> {
         func: Box<dyn Function>,
     }
 
-    let schema = DataSchemaRefExt::create(vec![
+    let data_fields = vec![
         DataField::new("a", DataType::Int64, false),
         DataField::new("b", DataType::Int64, false),
         DataField::new("c", DataType::Int16, false),
-    ]);
+    ];
+    let schema = DataSchemaRefExt::create(data_fields.clone());
 
     let tests = vec![
         Test {
@@ -34,7 +35,7 @@ fn test_arithmetic_function() -> Result<()> {
             display: "plus",
             nullable: false,
             arg_names: vec!["a", "b"],
-            func: ArithmeticPlusFunction::try_create_func("")?,
+            func: ArithmeticPlusFunction::try_create_func("", data_fields.clone())?,
             columns: vec![
                 Series::new(vec![4i64, 3, 2, 1]).into(),
                 Series::new(vec![1i64, 2, 3, 4]).into(),
@@ -48,7 +49,7 @@ fn test_arithmetic_function() -> Result<()> {
             display: "plus",
             nullable: false,
             arg_names: vec!["c", "b"],
-            func: ArithmeticPlusFunction::try_create_func("")?,
+            func: ArithmeticPlusFunction::try_create_func("", data_fields.clone())?,
             columns: vec![
                 Series::new(vec![4i64, 3, 2, 1]).into(),
                 Series::new(vec![1i64, 2, 3, 4]).into(),
@@ -62,7 +63,7 @@ fn test_arithmetic_function() -> Result<()> {
             display: "minus",
             arg_names: vec!["a", "b"],
             nullable: false,
-            func: ArithmeticMinusFunction::try_create_func("")?,
+            func: ArithmeticMinusFunction::try_create_func("", data_fields.clone())?,
             columns: vec![
                 Series::new(vec![4i64, 3, 2]).into(),
                 Series::new(vec![1i64, 2, 3]).into(),
@@ -76,7 +77,7 @@ fn test_arithmetic_function() -> Result<()> {
             display: "multiply",
             arg_names: vec!["a", "b"],
             nullable: false,
-            func: ArithmeticMulFunction::try_create_func("")?,
+            func: ArithmeticMulFunction::try_create_func("", data_fields.clone())?,
             columns: vec![
                 Series::new(vec![4i64, 3, 2]).into(),
                 Series::new(vec![1i64, 2, 3]).into(),
@@ -90,7 +91,7 @@ fn test_arithmetic_function() -> Result<()> {
             display: "divide",
             arg_names: vec!["a", "b"],
             nullable: false,
-            func: ArithmeticDivFunction::try_create_func("")?,
+            func: ArithmeticDivFunction::try_create_func("", data_fields.clone())?,
             columns: vec![
                 Series::new(vec![4i64, 3, 2]).into(),
                 Series::new(vec![1i64, 2, 3]).into(),
@@ -104,7 +105,7 @@ fn test_arithmetic_function() -> Result<()> {
             display: "modulo",
             arg_names: vec!["a", "b"],
             nullable: false,
-            func: ArithmeticModuloFunction::try_create_func("")?,
+            func: ArithmeticModuloFunction::try_create_func("", data_fields.clone())?,
             columns: vec![
                 Series::new(vec![4i64, 3, 2]).into(),
                 Series::new(vec![1i64, 2, 3]).into(),
@@ -129,7 +130,7 @@ fn test_arithmetic_function() -> Result<()> {
 
         // Nullable check.
         let expect_null = t.nullable;
-        let actual_null = func.nullable(&schema)?;
+        let actual_null = func.nullable()?;
         assert_eq!(expect_null, actual_null);
 
         // Type check.
@@ -138,7 +139,7 @@ fn test_arithmetic_function() -> Result<()> {
             args.push(schema.field_with_name(name)?.data_type().clone());
         }
 
-        let expect_type = func.return_type(&args)?.clone();
+        let expect_type = func.return_type()?.clone();
         let ref v = func.eval(&t.columns, rows)?;
         let actual_type = v.data_type().clone();
         assert_eq!(expect_type, actual_type);

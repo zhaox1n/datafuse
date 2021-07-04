@@ -13,6 +13,7 @@ fn test_siphash_function() -> Result<()> {
     #[allow(dead_code)]
     struct Test {
         name: &'static str,
+        data_field: Vec<DataField>,
         input_column: DataColumn,
         expect_output_column: DataColumn,
         error: &'static str,
@@ -21,6 +22,7 @@ fn test_siphash_function() -> Result<()> {
     let tests = vec![
         Test {
             name: "Int8Array siphash",
+            data_field: vec![DataField::new("", DataType::Int8, false)],
             input_column: Series::new(vec![1i8, 2, 1]).into(),
             expect_output_column: Series::new(vec![
                 4952851536318644461u64,
@@ -32,6 +34,7 @@ fn test_siphash_function() -> Result<()> {
         },
         Test {
             name: "Int16Array siphash",
+            data_field: vec![DataField::new("", DataType::Int16, false)],
             input_column: Series::new(vec![1i16, 2, 1]).into(),
             expect_output_column: Series::new(vec![
                 10500823559348167161u64,
@@ -43,6 +46,7 @@ fn test_siphash_function() -> Result<()> {
         },
         Test {
             name: "Int32Array siphash",
+            data_field: vec![DataField::new("", DataType::Int32, false)],
             input_column: Series::new(vec![1i32, 2, 1]).into(),
             expect_output_column: Series::new(vec![
                 1742378985846435984u64,
@@ -54,6 +58,7 @@ fn test_siphash_function() -> Result<()> {
         },
         Test {
             name: "Int64Array siphash",
+            data_field: vec![DataField::new("", DataType::Int64, false)],
             input_column: Series::new(vec![1i64, 2, 1]).into(),
             expect_output_column: Series::new(vec![
                 2206609067086327257u64,
@@ -65,6 +70,7 @@ fn test_siphash_function() -> Result<()> {
         },
         Test {
             name: "UInt8Array siphash",
+            data_field: vec![DataField::new("", DataType::UInt8, false)],
             input_column: Series::new(vec![1u8, 2, 1]).into(),
             expect_output_column: Series::new(vec![
                 4952851536318644461u64,
@@ -76,6 +82,7 @@ fn test_siphash_function() -> Result<()> {
         },
         Test {
             name: "UInt16Array siphash",
+            data_field: vec![DataField::new("", DataType::UInt16, false)],
             input_column: Series::new(vec![1u16, 2, 1]).into(),
             expect_output_column: Series::new(vec![
                 10500823559348167161u64,
@@ -87,6 +94,7 @@ fn test_siphash_function() -> Result<()> {
         },
         Test {
             name: "UInt32Array siphash",
+            data_field: vec![DataField::new("", DataType::UInt32, false)],
             input_column: Series::new(vec![1u32, 2, 1]).into(),
             expect_output_column: Series::new(vec![
                 1742378985846435984u64,
@@ -98,6 +106,7 @@ fn test_siphash_function() -> Result<()> {
         },
         Test {
             name: "UInt64Array siphash",
+            data_field: vec![DataField::new("", DataType::UInt64, false)],
             input_column: Series::new(vec![1u64, 2, 1]).into(),
             expect_output_column: Series::new(vec![
                 2206609067086327257u64,
@@ -109,6 +118,7 @@ fn test_siphash_function() -> Result<()> {
         },
         Test {
             name: "Float32Array siphash",
+            data_field: vec![DataField::new("", DataType::Float32, false)],
             input_column: Series::new(vec![1.0f32, 2., 1.]).into(),
             expect_output_column: Series::new(vec![
                 729488449357906283u64,
@@ -120,6 +130,7 @@ fn test_siphash_function() -> Result<()> {
         },
         Test {
             name: "Float64Array siphash",
+            data_field: vec![DataField::new("", DataType::Float64, false)],
             input_column: Series::new(vec![1.0f64, 2., 1.]).into(),
             expect_output_column: Series::new(vec![
                 13833534234735907638u64,
@@ -132,7 +143,7 @@ fn test_siphash_function() -> Result<()> {
     ];
 
     for test in tests {
-        let function = SipHashFunction::try_create("siphash")?;
+        let function = SipHashFunction::try_create("siphash", test.data_field)?;
 
         let rows = test.input_column.len();
         match function.eval(&[test.input_column], rows) {

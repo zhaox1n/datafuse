@@ -50,7 +50,6 @@ mod plan_expression_function;
 mod plan_expression_literal;
 mod plan_expression_rewriter;
 mod plan_expression_sort;
-mod plan_expression_validator;
 mod plan_expression_visitor;
 mod plan_extras;
 mod plan_filter;
@@ -112,7 +111,7 @@ pub use plan_expression_function::sum;
 pub use plan_expression_literal::lit;
 pub use plan_expression_rewriter::ExprRewriter;
 pub use plan_expression_sort::sort;
-pub use plan_expression_validator::validate_expression;
+/*pub use plan_expression_validator::validate_expression;*/
 pub use plan_expression_visitor::ExpressionVisitor;
 pub use plan_expression_visitor::Recursion;
 pub use plan_extras::Extras;

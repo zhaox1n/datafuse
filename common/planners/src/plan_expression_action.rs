@@ -51,10 +51,6 @@ pub struct ActionFunction {
     pub is_aggregated: bool,
 
     // for functions
-    pub arg_names: Vec<String>,
-    pub arg_types: Vec<DataType>,
-
-    // only for aggregate functions
     pub arg_fields: Vec<DataField>,
 }
 
@@ -84,8 +80,8 @@ impl ActionFunction {
         }
 
         match self.func_name.as_str() {
-            "cast" => Ok(CastFunction::create(self.return_type.clone())),
-            _ => FunctionFactory::get(&self.func_name),
+            "cast" => CastFunction::try_create(self.return_type.clone(), self.arg_fields.clone()),
+            _ => FunctionFactory::get(&self.func_name, self.arg_fields.clone()),
         }
     }
 

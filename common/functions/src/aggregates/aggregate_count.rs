@@ -41,7 +41,7 @@ impl AggregateFunction for AggregateCountFunction {
         Ok(DataType::UInt64)
     }
 
-    fn nullable(&self, _input_schema: &DataSchema) -> Result<bool> {
+    fn nullable(&self) -> Result<bool> {
         Ok(false)
     }
 

@@ -22,17 +22,12 @@ fn test_comparison_function() -> Result<()> {
         func: Box<dyn Function>,
     }
 
-    let schema = DataSchemaRefExt::create(vec![
-        DataField::new("a", DataType::Int64, false),
-        DataField::new("b", DataType::Int64, false),
-    ]);
-
     let tests = vec![
         Test {
             name: "eq-passed",
             display: "=",
             nullable: false,
-            func: ComparisonEqFunction::try_create_func("")?,
+            func: ComparisonEqFunction::try_create_func("", Vec::new())?,
             arg_names: vec!["a", "b"],
             columns: vec![
                 Series::new(vec![4i64, 3, 2, 4]).into(),
@@ -45,7 +40,7 @@ fn test_comparison_function() -> Result<()> {
             name: "gt-passed",
             display: ">",
             nullable: false,
-            func: ComparisonGtFunction::try_create_func("")?,
+            func: ComparisonGtFunction::try_create_func("", Vec::new())?,
             arg_names: vec!["a", "b"],
             columns: vec![
                 Series::new(vec![4i64, 3, 2, 4]).into(),
@@ -58,7 +53,7 @@ fn test_comparison_function() -> Result<()> {
             name: "gt-eq-passed",
             display: ">=",
             nullable: false,
-            func: ComparisonGtEqFunction::try_create_func("")?,
+            func: ComparisonGtEqFunction::try_create_func("", Vec::new())?,
             arg_names: vec!["a", "b"],
             columns: vec![
                 Series::new(vec![4i64, 3, 2, 4]).into(),
@@ -71,7 +66,7 @@ fn test_comparison_function() -> Result<()> {
             name: "lt-passed",
             display: "<",
             nullable: false,
-            func: ComparisonLtFunction::try_create_func("")?,
+            func: ComparisonLtFunction::try_create_func("", Vec::new())?,
             arg_names: vec!["a", "b"],
             columns: vec![
                 Series::new(vec![4i64, 3, 2, 4]).into(),
@@ -84,7 +79,7 @@ fn test_comparison_function() -> Result<()> {
             name: "lt-eq-passed",
             display: "<=",
             nullable: false,
-            func: ComparisonLtEqFunction::try_create_func("")?,
+            func: ComparisonLtEqFunction::try_create_func("", Vec::new())?,
             arg_names: vec!["a", "b"],
             columns: vec![
                 Series::new(vec![4i64, 3, 2, 4]).into(),
@@ -97,7 +92,7 @@ fn test_comparison_function() -> Result<()> {
             name: "not-eq-passed",
             display: "!=",
             nullable: false,
-            func: ComparisonNotEqFunction::try_create_func("")?,
+            func: ComparisonNotEqFunction::try_create_func("", Vec::new())?,
             arg_names: vec!["a", "b"],
             columns: vec![
                 Series::new(vec![4i64, 3, 2, 4]).into(),
@@ -110,7 +105,7 @@ fn test_comparison_function() -> Result<()> {
             name: "like-passed",
             display: "LIKE",
             nullable: false,
-            func: ComparisonLikeFunction::try_create_func("")?,
+            func: ComparisonLikeFunction::try_create_func("", Vec::new())?,
             arg_names: vec!["a", "b"],
             columns: vec![
                 Series::new(vec!["abc", "abd", "abe", "abf"]).into(),
@@ -123,7 +118,7 @@ fn test_comparison_function() -> Result<()> {
             name: "not-like-passed",
             display: "NOT LIKE",
             nullable: false,
-            func: ComparisonNotLikeFunction::try_create_func("")?,
+            func: ComparisonNotLikeFunction::try_create_func("", Vec::new())?,
             arg_names: vec!["a", "b"],
             columns: vec![
                 Series::new(vec!["abc", "abd", "abe", "abf"]).into(),
@@ -147,20 +142,14 @@ fn test_comparison_function() -> Result<()> {
         let actual_display = format!("{}", func);
         assert_eq!(expect_display, actual_display);
 
-        // Type check.
-        let mut args = vec![];
-        for name in t.arg_names {
-            args.push(schema.field_with_name(name)?.data_type().clone());
-        }
-
         // Nullable check.
         let expect_null = t.nullable;
-        let actual_null = func.nullable(&schema)?;
+        let actual_null = func.nullable()?;
         assert_eq!(expect_null, actual_null);
 
         let ref v = func.eval(&t.columns, rows)?;
         // Type check.
-        let expect_type = func.return_type(&args)?;
+        let expect_type = func.return_type()?;
         let actual_type = v.data_type();
         assert_eq!(expect_type, actual_type);
 

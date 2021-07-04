@@ -7,7 +7,6 @@ use std::fmt;
 
 use common_datavalues::columns::DataColumn;
 use common_datavalues::prelude::*;
-use common_datavalues::DataSchema;
 use common_datavalues::DataType;
 use common_exception::ErrorCode;
 use common_exception::Result;
@@ -17,27 +16,12 @@ use crate::scalars::Function;
 #[derive(Clone)]
 pub struct SipHashFunction {
     display_name: String,
+    return_type: DataType,
 }
 
 impl SipHashFunction {
-    pub fn try_create(display_name: &str) -> Result<Box<dyn Function>> {
-        Ok(Box::new(SipHashFunction {
-            display_name: display_name.to_string(),
-        }))
-    }
-}
-
-impl Function for SipHashFunction {
-    fn name(&self) -> &str {
-        "siphash"
-    }
-
-    fn num_arguments(&self) -> usize {
-        1
-    }
-
-    fn return_type(&self, args: &[DataType]) -> Result<DataType> {
-        match args[0] {
+    pub fn try_create(display_name: &str, arguments: Vec<DataField>) -> Result<Box<dyn Function>> {
+        let return_type = match arguments[0].data_type().clone() {
             DataType::Int8
             | DataType::Int16
             | DataType::Int32
@@ -51,15 +35,35 @@ impl Function for SipHashFunction {
             | DataType::Date32
             | DataType::Date64
             | DataType::Utf8
-            | DataType::Binary => Ok(DataType::UInt64),
-            _ => Result::Err(ErrorCode::BadArguments(format!(
-                "Function Error: Siphash does not support {} type parameters",
-                args[0]
-            ))),
-        }
+            | DataType::Binary => DataType::UInt64,
+            _ => {
+                return Result::Err(ErrorCode::BadArguments(format!(
+                    "Function Error: Siphash does not support {} type parameters",
+                    arguments[0].data_type()
+                )))
+            }
+        };
+        Ok(Box::new(SipHashFunction {
+            display_name: display_name.to_string(),
+            return_type,
+        }))
+    }
+}
+
+impl Function for SipHashFunction {
+    fn name(&self) -> &str {
+        "siphash"
     }
 
-    fn nullable(&self, _input_schema: &DataSchema) -> Result<bool> {
+    fn num_arguments(&self) -> usize {
+        1
+    }
+
+    fn return_type(&self) -> Result<DataType> {
+        Ok(self.return_type.clone())
+    }
+
+    fn nullable(&self) -> Result<bool> {
         Ok(false)
     }
 

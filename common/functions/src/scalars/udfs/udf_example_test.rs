@@ -1,14 +1,11 @@
-use common_datavalues::columns::DataColumn;
-use common_datavalues::prelude::*;
-use common_datavalues::DataField;
-use common_datavalues::DataSchemaRefExt;
-use common_datavalues::DataType;
-
-use crate::scalars::*;
-
 // Copyright 2020-2021 The Datafuse Authors.
 //
 // SPDX-License-Identifier: Apache-2.0.
+
+use common_datavalues::columns::DataColumn;
+use common_datavalues::prelude::*;
+
+use crate::scalars::*;
 
 #[test]
 fn test_udf_example_function() -> anyhow::Result<()> {
@@ -23,16 +20,11 @@ fn test_udf_example_function() -> anyhow::Result<()> {
         func: Box<dyn Function>,
     }
 
-    let schema = DataSchemaRefExt::create(vec![
-        DataField::new("a", DataType::Boolean, false),
-        DataField::new("b", DataType::Boolean, false),
-    ]);
-
     let tests = vec![Test {
         name: "udf-example-passed",
         display: "example()",
         nullable: false,
-        func: UdfExampleFunction::try_create("example")?,
+        func: UdfExampleFunction::try_create("example", Vec::default())?,
         columns: vec![
             Series::new(vec![true, true, true, false]).into(),
             Series::new(vec![true, false, true, true]).into(),
@@ -54,13 +46,12 @@ fn test_udf_example_function() -> anyhow::Result<()> {
 
         // Nullable check.
         let expect_null = t.nullable;
-        let actual_null = func.nullable(&schema)?;
+        let actual_null = func.nullable()?;
         assert_eq!(expect_null, actual_null);
 
         let ref v = func.eval(&t.columns, t.columns[0].len())?;
         // Type check.
-        let arg_types = vec![];
-        let expect_type = func.return_type(&arg_types)?;
+        let expect_type = func.return_type()?;
         let actual_type = v.data_type();
         assert_eq!(expect_type, actual_type);
         assert_eq!(v, &t.expect);

@@ -5,7 +5,7 @@
 use std::fmt;
 
 use common_datavalues::columns::DataColumn;
-use common_datavalues::DataSchema;
+use common_datavalues::DataField;
 use common_datavalues::DataType;
 use common_exception::Result;
 
@@ -15,11 +15,15 @@ use crate::scalars::Function;
 pub struct CastFunction {
     /// The data type to cast to
     cast_type: DataType,
+    nullable: bool,
 }
 
 impl CastFunction {
-    pub fn create(cast_type: DataType) -> Box<dyn Function> {
-        Box::new(Self { cast_type })
+    pub fn try_create(cast_type: DataType, arguments: Vec<DataField>) -> Result<Box<dyn Function>> {
+        Ok(Box::new(Self {
+            cast_type,
+            nullable: arguments[0].is_nullable(),
+        }))
     }
 }
 
@@ -28,13 +32,12 @@ impl Function for CastFunction {
         "CastFunction"
     }
 
-    fn return_type(&self, _args: &[DataType]) -> Result<DataType> {
+    fn return_type(&self) -> Result<DataType> {
         Ok(self.cast_type.clone())
     }
 
-    // TODO
-    fn nullable(&self, _input_schema: &DataSchema) -> Result<bool> {
-        Ok(false)
+    fn nullable(&self) -> Result<bool> {
+        Ok(self.nullable)
     }
 
     fn eval(&self, columns: &[DataColumn], input_rows: usize) -> Result<DataColumn> {

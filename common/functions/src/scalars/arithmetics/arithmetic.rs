@@ -6,7 +6,6 @@ use std::fmt;
 
 use common_datavalues::columns::DataColumn;
 use common_datavalues::prelude::*;
-use common_datavalues::DataSchema;
 use common_datavalues::DataValueArithmeticOperator;
 use common_exception::Result;
 
@@ -21,6 +20,7 @@ use crate::scalars::Function;
 #[derive(Clone)]
 pub struct ArithmeticFunction {
     op: DataValueArithmeticOperator,
+    return_type: DataType,
 }
 
 impl ArithmeticFunction {
@@ -39,8 +39,20 @@ impl ArithmeticFunction {
         Ok(())
     }
 
-    pub fn try_create_func(op: DataValueArithmeticOperator) -> Result<Box<dyn Function>> {
-        Ok(Box::new(ArithmeticFunction { op }))
+    pub fn try_create_func(
+        op: DataValueArithmeticOperator,
+        arguments: Vec<DataField>,
+    ) -> Result<Box<dyn Function>> {
+        let return_type = if arguments.len() == 1 {
+            arguments[0].data_type().clone()
+        } else {
+            common_datavalues::numerical_arithmetic_coercion(
+                &op,
+                arguments[0].data_type(),
+                arguments[1].data_type(),
+            )?
+        };
+        Ok(Box::new(ArithmeticFunction { op, return_type }))
     }
 }
 
@@ -49,14 +61,11 @@ impl Function for ArithmeticFunction {
         "ArithmeticFunction"
     }
 
-    fn return_type(&self, args: &[DataType]) -> Result<DataType> {
-        if args.len() == 1 {
-            return Ok(args[0].clone());
-        }
-        common_datavalues::numerical_arithmetic_coercion(&self.op, &args[0], &args[1])
+    fn return_type(&self) -> Result<DataType> {
+        Ok(self.return_type.clone())
     }
 
-    fn nullable(&self, _input_schema: &DataSchema) -> Result<bool> {
+    fn nullable(&self) -> Result<bool> {
         Ok(false)
     }
 

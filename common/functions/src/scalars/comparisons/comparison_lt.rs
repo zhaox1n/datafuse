@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0.
 
+use common_datavalues::DataField;
 use common_datavalues::DataValueComparisonOperator;
 use common_exception::Result;
 
@@ -11,7 +12,10 @@ use crate::scalars::Function;
 pub struct ComparisonLtFunction;
 
 impl ComparisonLtFunction {
-    pub fn try_create_func(_display_name: &str) -> Result<Box<dyn Function>> {
+    pub fn try_create_func(
+        _display_name: &str,
+        _arguments: Vec<DataField>,
+    ) -> Result<Box<dyn Function>> {
         ComparisonFunction::try_create_func(DataValueComparisonOperator::Lt)
     }
 }

@@ -24,7 +24,7 @@ fn test_version_function() -> anyhow::Result<()> {
         name: "version-function-passed",
         display: "version",
         nullable: false,
-        func: VersionFunction::try_create("version")?,
+        func: VersionFunction::try_create("version", Vec::default())?,
         columns: vec![Series::new(vec![
             "FuseQuery v-0.1.0-3afb26c(1.54.0-nightly-2021-06-09T07:56:09.461981495+00:00)",
         ])

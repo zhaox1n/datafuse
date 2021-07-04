@@ -5,7 +5,6 @@
 use std::fmt;
 
 use common_datavalues::columns::DataColumn;
-use common_datavalues::DataSchema;
 use common_datavalues::DataType;
 use common_exception::Result;
 use dyn_clone::DynClone;
@@ -23,7 +22,7 @@ pub trait Function: fmt::Display + Sync + Send + DynClone {
         None
     }
 
-    fn return_type(&self, args: &[DataType]) -> Result<DataType>;
-    fn nullable(&self, _input_schema: &DataSchema) -> Result<bool>;
+    fn return_type(&self) -> Result<DataType>;
+    fn nullable(&self) -> Result<bool>;
     fn eval(&self, columns: &[DataColumn], _input_rows: usize) -> Result<DataColumn>;
 }

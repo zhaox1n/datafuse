@@ -17,7 +17,7 @@ simd = ["arrow/simd"]
 arrow = { git="https://github.com/datafuse-extras/arrow-rs", rev = "f7d182df" }
 arrow-flight = {git="https://github.com/datafuse-extras/arrow-rs", rev = "f7d182df" }
 parquet = { git="https://github.com/datafuse-extras/arrow-rs", rev = "f7d182df", features = ["arrow"] }
-
+num = "0.4"
 # Crates.io dependencies
 
 [dev-dependencies]

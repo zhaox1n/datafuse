@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0.
 
+use common_datavalues::DataField;
 use common_datavalues::DataValueLogicOperator;
 use common_exception::Result;
 
@@ -11,7 +12,10 @@ use crate::scalars::LogicFunction;
 pub struct LogicAndFunction;
 
 impl LogicAndFunction {
-    pub fn try_create_func(_display_name: &str) -> Result<Box<dyn Function>> {
+    pub fn try_create_func(
+        _display_name: &str,
+        _arguments: Vec<DataField>,
+    ) -> Result<Box<dyn Function>> {
         LogicFunction::try_create_func(DataValueLogicOperator::And)
     }
 }

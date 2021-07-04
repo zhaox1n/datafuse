@@ -5,7 +5,7 @@
 use std::fmt;
 
 use common_datavalues::columns::DataColumn;
-use common_datavalues::DataSchema;
+use common_datavalues::DataField;
 use common_datavalues::DataType;
 use common_datavalues::DataValue;
 use common_exception::Result;
@@ -16,13 +16,17 @@ use crate::scalars::Function;
 pub struct ColumnFunction {
     value: String,
     saved: Option<DataValue>,
+    return_type: DataType,
+    nullable: bool,
 }
 
 impl ColumnFunction {
-    pub fn try_create(value: &str) -> Result<Box<dyn Function>> {
+    pub fn try_create(value: &str, arguments: Vec<DataField>) -> Result<Box<dyn Function>> {
         Ok(Box::new(ColumnFunction {
             value: value.to_string(),
             saved: None,
+            return_type: arguments[0].data_type().clone(),
+            nullable: arguments[0].is_nullable(),
         }))
     }
 }
@@ -32,13 +36,12 @@ impl Function for ColumnFunction {
         "ColumnFunction"
     }
 
-    fn return_type(&self, args: &[DataType]) -> Result<DataType> {
-        Ok(args[0].clone())
+    fn return_type(&self) -> Result<DataType> {
+        Ok(self.return_type.clone())
     }
 
-    fn nullable(&self, input_schema: &DataSchema) -> Result<bool> {
-        let field = input_schema.field_with_name(self.value.as_str())?;
-        Ok(field.is_nullable())
+    fn nullable(&self) -> Result<bool> {
+        Ok(self.nullable)
     }
 
     fn eval(&self, columns: &[DataColumn], _input_rows: usize) -> Result<DataColumn> {

@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0.
 
+use crate::prelude::*;
+
 #[test]
 fn filter_batch_array() -> anyhow::Result<()> {
-    use std::sync::Arc;
-
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -13,36 +13,37 @@ fn filter_batch_array() -> anyhow::Result<()> {
     #[allow(dead_code)]
     struct FilterArrayTest {
         name: &'static str,
-        filter: BooleanArray,
-        expect: Vec<DataArrayRef>,
+        filter: DFBooleanArray,
+        expect: Vec<Series>,
     }
 
-    let batch_array: Vec<DataArrayRef> = vec![
-        Arc::new(Int64Array::from(vec![1, 2, 3, 4, 5])),
-        Arc::new(Int64Array::from(vec![6, 7, 8, 9, 10])),
+    let batch_array: Vec<Series> = vec![
+        Series::new(vec![1i64, 2, 3, 4, 5]).into(),
+        Series::new(vec![6i64, 7, 8, 9, 10]).into(),
     ];
 
     let tests = vec![
         FilterArrayTest {
             name: "normal filter",
-            filter: BooleanArray::from(vec![true, false, true, false, true]),
+            filter: DFBooleanArray::new_from_slice(&vec![true, false, true, false, true]).into(),
             expect: vec![
-                Arc::new(Int64Array::from(vec![1, 3, 5])),
-                Arc::new(Int64Array::from(vec![6, 8, 10])),
+                Series::new(vec![1i64, 3, 5]).into(),
+                Series::new(vec![6i64, 8, 10]).into(),
             ],
         },
         FilterArrayTest {
             name: "filter contain null",
-            filter: {
-                let mut filter = BooleanArray::builder(5);
-                filter.append_slice(&[true, false, true])?;
-                filter.append_null()?;
-                filter.append_null()?;
-                filter.finish()
-            },
+            filter: DFBooleanArray::new_from_opt_slice(&vec![
+                Some(true),
+                Some(false),
+                Some(true),
+                None,
+                None,
+            ])
+            .into(),
             expect: vec![
-                Arc::new(Int64Array::from(vec![1, 3])),
-                Arc::new(Int64Array::from(vec![6, 8])),
+                Series::new(vec![1i64, 3]).into(),
+                Series::new(vec![6i64, 8]).into(),
             ],
         },
     ];
@@ -52,8 +53,11 @@ fn filter_batch_array() -> anyhow::Result<()> {
         assert_eq!(t.expect.len(), result.len());
         for i in 0..t.expect.len() {
             assert_eq!(
-                result.get(i).as_ref(),
-                t.expect.get(i).as_ref(),
+                result
+                    .get(i)
+                    .unwrap()
+                    .series_equal(t.expect.get(i).unwrap()),
+                true,
                 "{}",
                 t.name
             )

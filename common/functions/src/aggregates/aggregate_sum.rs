@@ -44,7 +44,7 @@ impl AggregateFunction for AggregateSumFunction {
         Ok(self.state.data_type())
     }
 
-    fn nullable(&self, _input_schema: &DataSchema) -> Result<bool> {
+    fn nullable(&self) -> Result<bool> {
         Ok(false)
     }
 

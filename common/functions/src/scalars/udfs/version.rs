@@ -5,7 +5,7 @@
 use std::fmt;
 
 use common_datavalues::columns::DataColumn;
-use common_datavalues::DataSchema;
+use common_datavalues::DataField;
 use common_datavalues::DataType;
 use common_exception::Result;
 
@@ -17,7 +17,7 @@ pub struct VersionFunction {
 }
 
 impl VersionFunction {
-    pub fn try_create(display_name: &str) -> Result<Box<dyn Function>> {
+    pub fn try_create(display_name: &str, _arguments: Vec<DataField>) -> Result<Box<dyn Function>> {
         Ok(Box::new(VersionFunction {
             display_name: display_name.to_string(),
         }))
@@ -29,11 +29,11 @@ impl Function for VersionFunction {
         "VersionFunction"
     }
 
-    fn return_type(&self, _args: &[DataType]) -> Result<DataType> {
+    fn return_type(&self) -> Result<DataType> {
         Ok(DataType::Utf8)
     }
 
-    fn nullable(&self, _input_schema: &DataSchema) -> Result<bool> {
+    fn nullable(&self) -> Result<bool> {
         Ok(false)
     }
 

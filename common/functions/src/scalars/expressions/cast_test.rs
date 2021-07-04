@@ -28,9 +28,13 @@ fn test_cast_function() -> Result<()> {
             display: "CAST",
             nullable: false,
             columns: vec![Series::new(vec![4i64, 3, 2, 4]).into()],
-            func: CastFunction::create(DataType::Int8),
+            func: CastFunction::try_create(DataType::Int8, vec![DataField::new(
+                "".as_ref(),
+                DataType::Int64,
+                false,
+            )])?,
             cast_type: DataType::Int8,
-            expect: Series::new(vec![4i32, 3, 2, 4]),
+            expect: Series::new(vec![4i8, 3, 2, 4]),
             error: "",
         },
         Test {
@@ -38,7 +42,11 @@ fn test_cast_function() -> Result<()> {
             display: "CAST",
             nullable: false,
             columns: vec![Series::new(vec!["20210305", "20211024"]).into()],
-            func: CastFunction::create(DataType::Int32),
+            func: CastFunction::try_create(DataType::Int32, vec![DataField::new(
+                "".as_ref(),
+                DataType::Utf8,
+                false,
+            )])?,
             cast_type: DataType::Date32,
             expect: Series::new(vec![20210305i32, 20211024]),
             error: "",
@@ -59,13 +67,12 @@ fn test_cast_function() -> Result<()> {
 
         // Nullable check.
         let expect_null = t.nullable;
-        let actual_null = func.nullable(&DataSchema::empty())?;
+        let actual_null = func.nullable()?;
         assert_eq!(expect_null, actual_null);
 
         let ref v = func.eval(&t.columns, rows)?;
         // Type check.
-        let args = vec![t.cast_type];
-        let expect_type = func.return_type(&args)?;
+        let expect_type = func.return_type()?;
         let actual_type = v.data_type();
         assert_eq!(expect_type, actual_type);
 

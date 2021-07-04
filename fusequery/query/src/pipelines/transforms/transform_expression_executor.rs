@@ -104,10 +104,10 @@ impl ExpressionExecutor {
                 ExpressionAction::Function(f) => {
                     // check if it's cached
                     let arg_columns = f
-                        .arg_names
+                        .arg_fields
                         .iter()
                         .map(|arg| {
-                            column_map.get(arg).cloned().ok_or_else(|| {
+                            column_map.get(arg.name()).cloned().ok_or_else(|| {
                                 ErrorCode::LogicalError(
                                     "Arguments must be prepared before function transform",
                                 )

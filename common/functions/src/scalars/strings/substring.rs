@@ -14,12 +14,14 @@ use crate::scalars::Function;
 #[derive(Clone)]
 pub struct SubstringFunction {
     display_name: String,
+    nullable: bool,
 }
 
 impl SubstringFunction {
-    pub fn try_create(display_name: &str) -> Result<Box<dyn Function>> {
+    pub fn try_create(display_name: &str, arguments: Vec<DataField>) -> Result<Box<dyn Function>> {
         Ok(Box::new(SubstringFunction {
             display_name: display_name.to_string(),
+            nullable: arguments[0].is_nullable(),
         }))
     }
 }
@@ -29,12 +31,12 @@ impl Function for SubstringFunction {
         "substring"
     }
 
-    fn return_type(&self, _args: &[DataType]) -> Result<DataType> {
+    fn return_type(&self) -> Result<DataType> {
         Ok(DataType::Utf8)
     }
 
-    fn nullable(&self, _input_schema: &DataSchema) -> Result<bool> {
-        Ok(false)
+    fn nullable(&self) -> Result<bool> {
+        Ok(self.nullable)
     }
 
     fn eval(&self, columns: &[DataColumn], _input_rows: usize) -> Result<DataColumn> {

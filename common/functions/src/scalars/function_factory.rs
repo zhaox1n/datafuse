@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 
+use common_datavalues::DataField;
 use common_exception::ErrorCode;
 use common_exception::Result;
 use common_infallible::RwLock;
@@ -19,7 +20,7 @@ use crate::scalars::StringFunction;
 use crate::scalars::UdfFunction;
 
 pub struct FunctionFactory;
-pub type FactoryFunc = fn(name: &str) -> Result<Box<dyn Function>>;
+pub type FactoryFunc = fn(name: &str, argument: Vec<DataField>) -> Result<Box<dyn Function>>;
 
 pub type FactoryFuncRef = Arc<RwLock<IndexMap<&'static str, FactoryFunc>>>;
 
@@ -37,12 +38,12 @@ lazy_static! {
 }
 
 impl FunctionFactory {
-    pub fn get(name: &str) -> Result<Box<dyn Function>> {
+    pub fn get(name: &str, argument: Vec<DataField>) -> Result<Box<dyn Function>> {
         let map = FACTORY.read();
         let creator = map
             .get(&*name.to_lowercase())
             .ok_or_else(|| ErrorCode::UnknownFunction(format!("Unsupported Function: {}", name)))?;
-        (creator)(name)
+        (creator)(name, argument)
     }
 
     pub fn check(name: &str) -> bool {

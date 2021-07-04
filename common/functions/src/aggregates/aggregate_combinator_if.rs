@@ -71,8 +71,8 @@ impl AggregateFunction for AggregateIfCombinator {
         self.nested.return_type()
     }
 
-    fn nullable(&self, input_schema: &DataSchema) -> Result<bool> {
-        self.nested.nullable(input_schema)
+    fn nullable(&self) -> Result<bool> {
+        self.nested.nullable()
     }
 
     fn as_any(&self) -> &dyn Any {

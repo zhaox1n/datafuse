@@ -24,7 +24,7 @@ fn test_database_function() -> anyhow::Result<()> {
         name: "database-function-passed",
         display: "database",
         nullable: false,
-        func: DatabaseFunction::try_create("database")?,
+        func: DatabaseFunction::try_create("database", vec![])?,
         columns: vec![
             Series::new(vec!["default"]).into(),
             Series::new(vec![4]).into(),

@@ -34,4 +34,10 @@ impl DFBooleanArray {
         let mut values = self.downcast_iter();
         values.all(|f| !f.unwrap_or(true))
     }
+
+    /// Check if all values are false or null
+    pub fn all_false_or_null(&self) -> bool {
+        let mut values = self.downcast_iter();
+        values.all(|f| !f.unwrap_or(false))
+    }
 }

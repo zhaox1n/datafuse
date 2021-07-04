@@ -23,11 +23,11 @@ fn test_substring_function() -> Result<()> {
         func: Box<dyn Function>,
     }
 
-    let schema = DataSchemaRefExt::create(vec![
+    let data_fields = vec![
         DataField::new("a", DataType::Utf8, false),
         DataField::new("b", DataType::Int64, false),
         DataField::new("c", DataType::UInt64, false),
-    ]);
+    ];
 
     let tests = vec![
         Test {
@@ -40,7 +40,7 @@ fn test_substring_function() -> Result<()> {
                 Series::new(vec![2_i64]).into(),
                 Series::new(vec![3_u64]).into(),
             ],
-            func: SubstringFunction::try_create("substring")?,
+            func: SubstringFunction::try_create("substring", data_fields.clone())?,
             expect: Series::new(vec!["bcd"]).into(),
             error: "",
         },
@@ -54,7 +54,7 @@ fn test_substring_function() -> Result<()> {
                 Series::new(vec![1_i64]).into(),
                 Series::new(vec![3_u64]).into(),
             ],
-            func: SubstringFunction::try_create("substring")?,
+            func: SubstringFunction::try_create("substring", data_fields.clone())?,
             expect: Series::new(vec!["abc"]).into(),
             error: "",
         },
@@ -68,7 +68,7 @@ fn test_substring_function() -> Result<()> {
                 Series::new(vec![2_i64]).into(),
             ],
 
-            func: SubstringFunction::try_create("substring")?,
+            func: SubstringFunction::try_create("substring", data_fields.clone())?,
             expect: Series::new(vec!["bcde"]).into(),
             error: "",
         },
@@ -83,7 +83,7 @@ fn test_substring_function() -> Result<()> {
                 Series::new(vec![3_u64]).into(),
             ],
 
-            func: SubstringFunction::try_create("substring")?,
+            func: SubstringFunction::try_create("substring", data_fields.clone())?,
             expect: Series::new(vec!["890"]).into(),
             error: "",
         },
@@ -104,18 +104,13 @@ fn test_substring_function() -> Result<()> {
 
         // Nullable check.
         let expect_null = t.nullable;
-        let actual_null = func.nullable(&schema)?;
+        let actual_null = func.nullable()?;
         assert_eq!(expect_null, actual_null);
 
         let ref v = func.eval(&t.columns, rows)?;
 
         // Type check.
-        let mut args = vec![];
-        for name in t.arg_names {
-            args.push(schema.field_with_name(name)?.data_type().clone());
-        }
-        // Type check.
-        let expect_type = func.return_type(&args)?;
+        let expect_type = func.return_type()?;
         let actual_type = v.data_type();
         assert_eq!(expect_type, actual_type);
         assert_eq!(v, &t.expect);
